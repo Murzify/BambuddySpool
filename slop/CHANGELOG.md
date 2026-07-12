@@ -2,6 +2,8 @@
 
 ## 2026-07-12
 
+- Completed `[INIT]-[003]` with the ADR-001 `shared` / `androidApp` / `iosApp` topology, thin platform shells, Android host/device test boundaries, and aligned iOS deployment targets.
+- Verified Android debug/release and device-test APKs, physical device smoke on HONOR 50, both iOS targets, iOS Simulator tests, and the Xcode shell build.
 - Completed `[INIT]-[002]` with a pinned JDK 17, Gradle, AGP, Kotlin, Compose, Room, Decompose, Ktor, Metro, Serialization, and DataStore compatibility matrix.
 - Lowered the Android minimum SDK declaration from 26 to the required API 23 and aligned JVM bytecode with JDK 17.
 - Added a cross-target dependency smoke test and verified Android debug, Android host tests, iOS device compilation, iOS Simulator tests, and the iOS shell build.

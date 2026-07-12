@@ -16,7 +16,7 @@ Prove a compatible pinned matrix for JDK 17, Gradle 9.1+, AGP 9.0.x, Kotlin/KGP,
 Task DOD
 `docs/decisions/toolchain.md` records versions and rationale; wrapper and catalog are pinned; Android debug, iOS shell, and shared smoke tests build; workarounds are documented; dependency resolution is reproducible.
 
-- [ ] [INIT]-[003] Establish the shared/androidApp/iosApp Topology
+- [x] [INIT]-[003] Establish the shared/androidApp/iosApp Topology
 Task Context
 Implement ADR-001. `shared` owns KMP product UI and business logic; `androidApp` owns only manifest, Application, Activity, Android resources, build types, signing, and R8 wiring; `iosApp` is a thin Xcode shell. Add required common, Android host/device, and iOS source sets. Support minSdk 23, only debug/release, and do not lock orientation.
 Task DOD
