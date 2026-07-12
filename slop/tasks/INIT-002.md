@@ -1,6 +1,6 @@
 # Task Report: INIT-002 Run the Toolchain Compatibility Spike
 
-**Status:** Incomplete; final iOS Simulator execution evidence pending
+**Status:** Complete
 **Completed:** 2026-07-12
 **Branch:** `task/init-002`
 
@@ -17,8 +17,8 @@ The required ecosystem is pinned and proven across Android, `iosArm64`, and `ios
 - [x] Android debug APK builds and declares minSdk 23.
 - [x] Android host/common smoke tests execute.
 - [x] `iosArm64` compiles.
-- [ ] `iosSimulatorArm64` tests execute on the final JDK 17 / Kotlin 2.3.20 / Metro 0.11.4 matrix. The binary linked, but the verification run was interrupted before task execution completed.
-- [ ] The iOS Simulator shell is rebuilt after the final matrix test execution. An earlier candidate built successfully but used the superseded Java 21 / Kotlin 2.4 / Metro 1.3.1 combination.
+- [x] `iosSimulatorArm64` tests complete successfully on the final JDK 17 / Kotlin 2.3.20 / Metro 0.11.4 matrix.
+- [x] The iOS Simulator shell builds and links the final shared Compose framework.
 - [x] Room, Decompose, Ktor, Metro, Serialization, and DataStore resolve and compile through a focused common smoke test.
 - [x] Dependency-resolution controls and known warnings are documented.
 - [x] No private instance access, secret, or private OpenAPI artifact was used.
@@ -34,7 +34,7 @@ apkanalyzer manifest min-sdk androidApp/build/outputs/apk/debug/androidApp-debug
 
 ## ADR and backlog
 
-No ADR and no new backlog task were added. `[INIT]-[002]` remains unchecked. Existing `[INIT]-[005]` and `[SEC]-[005]` own quality-gate follow-up and dependency verification/locking respectively.
+No ADR and no new backlog task were added. Existing `[INIT]-[003]`, `[INIT]-[005]`, and `[SEC]-[005]` own deployment-target alignment, quality-gate follow-up, and dependency verification/locking respectively.
 
 ## Risks
 
@@ -42,6 +42,7 @@ No ADR and no new backlog task were added. `[INIT]-[002]` remains unchecked. Exi
 - JDK auto-download is not configured; environments must provision Microsoft JDK 17.
 - Metro is pinned to 0.11.4 because every 0.12+ plugin release requires a JDK 21 Gradle runtime.
 - The framework bundle ID warning remains non-blocking configuration work.
+- The successful Xcode shell build reports a shared libicu object built for Simulator 18.5 while the app targets 18.2; align deployment targets in `[INIT]-[003]`.
 
 ## Push status
 

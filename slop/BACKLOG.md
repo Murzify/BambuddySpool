@@ -10,7 +10,7 @@ Resolve or record an owner and deadline for all release-blocking questions: supp
 Task DOD
 Every decision has a status, owner, deadline, and impact; confirmed values match Gradle, manifest, and README; unresolved items are explicit release blockers; deviations from the baseline have ADRs; no secret or private OpenAPI export is committed.
 
-- [ ] [INIT]-[002] Run the Toolchain Compatibility Spike
+- [x] [INIT]-[002] Run the Toolchain Compatibility Spike
 Task Context
 Prove a compatible pinned matrix for JDK 17, Gradle 9.1+, AGP 9.0.x, Kotlin/KGP, Compose Multiplatform, Room KMP, Decompose, Ktor, Metro, Serialization, and DataStore. Keep AGP application and KMP plugins in separate modules. Prove API 23, `iosArm64`, `iosSimulatorArm64`, JVM/iOS shared tests, and minimal shared Compose rendering. Dynamic versions are forbidden.
 Task DOD
