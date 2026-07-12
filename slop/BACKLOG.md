@@ -4,7 +4,7 @@ Sources: `slop/PRD.md` and `slop/TECHSPEC.md`, based on Bambuddy OpenAPI `0.2.4.
 
 ## Stage 1. Initialization and Architecture Foundation
 
-- [ ] [INIT]-[001] Resolve Product and Release Parameters
+- [x] [INIT]-[001] Resolve Product and Release Parameters
 Task Context
 Resolve or record an owner and deadline for all release-blocking questions: supported Android device and OS/build/NFC chipset, application ID (proposed `ru.nonamee.bambuddyspoolmanager`), GitHub owner/repository/license, and sanitized multi-external-slot fixtures. Record them in `docs/decisions/project-parameters.md`. Missing multi-slot evidence must not block the known A1 mapping (`ams_id=255`, `tray_id=0`); unknown topology must fail closed. Never invent owner-provided facts.
 Task DOD

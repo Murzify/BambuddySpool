@@ -1,5 +1,11 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
+Project coordinates: [`Murzify/BambuddySpool`](https://github.com/Murzify/BambuddySpool)
+Android application ID: `com.murzify.bambuddyspool`
+License: Mozilla Public License 2.0 (`MPL-2.0`)
+
+The v1 physical Android/NFC acceptance device is HONOR 50 (`NTH-NX9`) running Android 13 / API 33, build `NTH-N29 7.1.0.345(C10E1R5P1)`. The confirmed Bambu Lab A1 external slot mapping is `ams_id=255`, `tray_id=0`. Multi-external-slot printer support is not claimed without factual sanitized topology evidence; unknown topology fails closed.
+
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 
