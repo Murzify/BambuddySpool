@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[008]` with an atomic snapshot synchronizer that fetches printers, bounded-concurrency status/topology, archived-inclusive spools, and assignments before publishing through a generation-guarded `SnapshotStore`.
+- Added a Room transaction adapter for complete snapshot rebuilds, generation cleanup, sync metadata advancement, and stale-generation rejection so older refreshes cannot overwrite newer post-mutation state.
+- Added deterministic common tests for rollback/stale preservation, partial response rejection, trigger joining, foreground debounce, status concurrency, deletion by replacement, generation races, and archived-inclusive spool fetches.
 - Completed `[DATA]-[007]` with bounded Ktor repositories for the mandatory Bambuddy operations, typed network errors, URL-builder endpoint construction with base-path support, `X-API-Key` credential injection, and response-size enforcement before parsing.
 - Added Android OkHttp and iOS Darwin engine factories with disabled automatic redirects and 3-second connect / 10-second request timeouts, plus security-policy hooks for later redirect/TLS enforcement.
 - Added MockEngine coverage for every mandatory operation, credential redaction, oversized responses, base paths, and distinct 4xx, 5xx, transport, contract, and TLS/security-policy failures.

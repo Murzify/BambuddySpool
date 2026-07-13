@@ -102,7 +102,7 @@ Implement mandatory operations with Android and Darwin engines, X-API-Key creden
 Task DOD
 MockEngine tests cover every operation; credentials never enter exception text; oversized responses fail safely; 4xx/5xx/transport/contract/TLS failures are distinct; base paths work; iOS compiles.
 
-- [ ] [DATA]-[008] Implement Atomic Snapshot Synchronization
+- [x] [DATA]-[008] Implement Atomic Snapshot Synchronization
 Task Context
 Fetch printers, every status/topology, archived-inclusive spools, and assignments. Publish only a fully valid snapshot in one Room transaction. Join concurrent sync triggers, bound status concurrency to four, debounce foreground by two seconds, and prevent older sync generations from overwriting post-mutation state.
 Task DOD

@@ -27,6 +27,8 @@ abstract class BambuddyDatabase : RoomDatabase() {
     abstract fun syncMetadata(): SyncMetadataDao
 
     abstract fun cacheMaintenance(): CacheMaintenanceDao
+
+    abstract fun snapshotTransactions(): SnapshotTransactionDao
 }
 
 const val BAMBUDDY_DATABASE_VERSION: Int = 1
