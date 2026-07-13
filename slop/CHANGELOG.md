@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[009]` with a fail-closed common slot topology resolver, centralized A1 mapping, multiple-known-slot representation, label precedence, AMS read-only slots, and typed unsupported-topology mutation blocking.
+- Updated atomic snapshot sync to use the resolver and reject unsupported topology atomically instead of persisting partial slot rows.
 - Completed `[DATA]-[008]` with an atomic snapshot synchronizer that fetches printers, bounded-concurrency status/topology, archived-inclusive spools, and assignments before publishing through a generation-guarded `SnapshotStore`.
 - Added a Room transaction adapter for complete snapshot rebuilds, generation cleanup, sync metadata advancement, and stale-generation rejection so older refreshes cannot overwrite newer post-mutation state.
 - Added deterministic common tests for rollback/stale preservation, partial response rejection, trigger joining, foreground debounce, status concurrency, deletion by replacement, generation races, and archived-inclusive spool fetches.

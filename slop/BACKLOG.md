@@ -108,7 +108,7 @@ Fetch printers, every status/topology, archived-inclusive spools, and assignment
 Task DOD
 Rollback, stale preservation, joining, debounce, deletion, and generation races have deterministic tests without sleeps; partial responses never publish; cache rebuild preserves settings/token; UI reads Room.
 
-- [ ] [DATA]-[009] Implement a Fail-Closed SlotTopologyResolver
+- [x] [DATA]-[009] Implement a Fail-Closed SlotTopologyResolver
 Task Context
 Use `PrinterStatus.vt_tray` as the physical source and assignments as state/evidence. Isolate the known A1 `255/0` rule, represent multiple external slots, apply label precedence, and keep AMS read-only. Never infer coordinates from order, choose the first slot, or expose a partial unknown topology.
 Task DOD

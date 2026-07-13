@@ -2,15 +2,20 @@ package com.murzify.bambuddyspool.core.sync
 
 import com.murzify.bambuddyspool.core.domain.Assignment
 import com.murzify.bambuddyspool.core.domain.Printer
+import com.murzify.bambuddyspool.core.domain.PrinterId
 import com.murzify.bambuddyspool.core.domain.PrinterSlot
 import com.murzify.bambuddyspool.core.domain.PrinterStatus
 import com.murzify.bambuddyspool.core.domain.SlotKey
-import com.murzify.bambuddyspool.core.domain.SlotKind
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.Spool
+import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.domain.UnsupportedTopology as DomainUnsupportedTopology
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
+import com.murzify.bambuddyspool.core.topology.KnownSlotTopologyResolver
+import com.murzify.bambuddyspool.core.topology.SlotTopologyResolution
+import com.murzify.bambuddyspool.core.topology.SlotTopologyResolver
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +33,7 @@ class AtomicSnapshotSynchronizer(
     private val store: SnapshotStore,
     private val clock: SyncClock,
     private val scope: CoroutineScope,
+    private val topologyResolver: SlotTopologyResolver = KnownSlotTopologyResolver(),
     private val foregroundDebounce: Duration = 2.seconds,
     private val statusConcurrency: Int = MAX_STATUS_CONCURRENCY
 ) {
@@ -126,13 +132,15 @@ class AtomicSnapshotSynchronizer(
             assignments = assignments
         )
         if (validationFailure != null) {
-            return invalid(validationFailure)
+            return SnapshotBuildResult.Failure(validationFailure)
         }
 
         val statusByPrinter = statuses.associateBy { it.printer.id }
-        val slots = printers.flatMap { printer ->
-            resolveKnownExternalSlots(printer = printer, status = statusByPrinter.getValue(printer.id))
-        }
+        val slots = resolveSlots(
+            printers = printers,
+            statusByPrinter = statusByPrinter,
+            assignments = assignments
+        ).valueOrReturnFailure()
 
         return SnapshotBuildResult.Success(
             DomainSnapshot(
@@ -150,61 +158,76 @@ class AtomicSnapshotSynchronizer(
         statuses: List<PrinterStatus>,
         spools: List<Spool>,
         assignments: List<Assignment>
-    ): String? {
-        val printerIds = printers.map { it.id }.toSet()
-        val spoolIds = spools.map { it.id }.toSet()
-        val statusByPrinter = statuses.associateBy { it.printer.id }
-        val statusSetMatchesPrinters = statusByPrinter.size == printers.size && statusByPrinter.keys == printerIds
-        val slots = if (statusSetMatchesPrinters) {
-            printers.flatMap { printer ->
-                resolveKnownExternalSlots(printer = printer, status = statusByPrinter.getValue(printer.id))
-            }
-        } else {
-            emptyList()
+    ): SnapshotSyncFailure? {
+        val context = SnapshotValidationContext(
+            printers = printers,
+            statusesByPrinter = statuses.associateBy { it.printer.id },
+            spools = spools,
+            assignments = assignments
+        )
+        val structuralFailure = validateSnapshotStructure(context)
+        if (structuralFailure != null) {
+            return structuralFailure
         }
-        val slotKeys = slots.map { it.key }.toSet()
-        val assignmentSlots = assignments.map { it.slot }.toSet()
-        var failure: String? = when {
-            printerIds.size != printers.size -> "Duplicate printer IDs in snapshot"
-            spoolIds.size != spools.size -> "Duplicate spool IDs in snapshot"
-            !statusSetMatchesPrinters -> "Printer status set does not match printer list"
-            slotKeys.size != slots.size -> "Duplicate slot keys in snapshot"
-            assignmentSlots.size != assignments.size -> "Duplicate assignments for one slot"
-            else -> null
+
+        return when (
+            val resolvedSlots = resolveSlots(
+                printers = printers,
+                statusByPrinter = context.statusesByPrinter,
+                assignments = assignments
+            )
+        ) {
+            is SnapshotBuildResult.Failure -> resolvedSlots.failure
+            is SnapshotBuildResult.Success -> validateAssignmentReferences(
+                context = context,
+                slotKeys = resolvedSlots.value.map { it.key }.toSet()
+            )
         }
-        if (failure == null) {
-            failure = assignments.firstNotNullOfOrNull { assignment ->
-                when {
-                    assignment.slot.printerId !in printerIds -> "Assignment references an unknown printer"
-                    assignment.spoolId !in spoolIds -> "Assignment references an unknown spool"
-                    assignment.slot !in slotKeys -> "Assignment references an unresolved slot"
-                    else -> null
-                }
-            }
-        }
-        return failure
     }
 
-    private fun resolveKnownExternalSlots(printer: Printer, status: PrinterStatus): List<PrinterSlot> {
-        if (status.printer.id != printer.id) {
-            return emptyList()
+    private fun validateSnapshotStructure(context: SnapshotValidationContext): SnapshotSyncFailure? = when {
+        context.printerIds.size != context.printers.size -> invalid("Duplicate printer IDs in snapshot").failure
+        context.spoolIds.size != context.spools.size -> invalid("Duplicate spool IDs in snapshot").failure
+        context.statusesByPrinter.size != context.printers.size ||
+            context.statusesByPrinter.keys != context.printerIds -> invalid(
+            "Printer status set does not match printer list"
+        ).failure
+        context.assignmentSlots.size != context.assignments.size -> invalid(
+            "Duplicate assignments for one slot"
+        ).failure
+        else -> null
+    }
+
+    private fun validateAssignmentReferences(
+        context: SnapshotValidationContext,
+        slotKeys: Set<SlotKey>
+    ): SnapshotSyncFailure? = context.assignments.firstNotNullOfOrNull { assignment ->
+        when {
+            assignment.slot.printerId !in context.printerIds -> invalid(
+                "Assignment references an unknown printer"
+            ).failure
+            assignment.spoolId !in context.spoolIds -> invalid("Assignment references an unknown spool").failure
+            assignment.slot !in slotKeys -> invalid("Assignment references an unresolved slot").failure
+            else -> null
         }
-        return status.virtualTrays
-            .filter { it.id == CONFIRMED_A1_EXTERNAL_AMS_ID }
-            .mapNotNull { tray ->
-                SlotKey.from(
-                    printerId = printer.id,
-                    amsId = CONFIRMED_A1_EXTERNAL_AMS_ID,
-                    trayId = CONFIRMED_A1_EXTERNAL_TRAY_ID
-                )?.let { key ->
-                    PrinterSlot(
-                        key = key,
-                        kind = SlotKind.External,
-                        label = tray.label ?: CONFIRMED_A1_EXTERNAL_LABEL,
-                        assignedSpoolId = null
-                    )
-                }
+    }
+
+    private fun resolveSlots(
+        printers: List<Printer>,
+        statusByPrinter: Map<PrinterId, PrinterStatus>,
+        assignments: List<Assignment>
+    ): SnapshotBuildResult<List<PrinterSlot>> {
+        val slots = mutableListOf<PrinterSlot>()
+        for (printer in printers) {
+            val status = statusByPrinter.getValue(printer.id)
+            when (val resolution = topologyResolver.resolve(printer, status, assignments)) {
+                is SlotTopologyResolution.Supported -> slots += resolution.slots
+                is SlotTopologyResolution.Unsupported -> return SnapshotBuildResult.Failure(
+                    SnapshotSyncFailure.UnsupportedTopology(resolution.failure)
+                )
             }
+        }
+        return SnapshotBuildResult.Success(slots)
     }
 
     private fun <T> BambuddyNetworkResult<T>.networkValueOrReturnFailure(): T = when (this) {
@@ -246,6 +269,8 @@ sealed interface SnapshotSyncResult {
 sealed interface SnapshotSyncFailure {
     data class Network(val error: BambuddyNetworkError) : SnapshotSyncFailure
     data class InvalidSnapshot(val reason: String) : SnapshotSyncFailure
+    data class UnsupportedTopology(val failure: DomainUnsupportedTopology) : SnapshotSyncFailure
+
     data class StoreRejected(val reason: String) : SnapshotSyncFailure
     data object StaleGeneration : SnapshotSyncFailure
 }
@@ -269,6 +294,17 @@ private sealed interface SnapshotBuildResult<out T> {
     data class Failure(val failure: SnapshotSyncFailure) : SnapshotBuildResult<Nothing>
 }
 
+private data class SnapshotValidationContext(
+    val printers: List<Printer>,
+    val statusesByPrinter: Map<PrinterId, PrinterStatus>,
+    val spools: List<Spool>,
+    val assignments: List<Assignment>
+) {
+    val printerIds: Set<PrinterId> = printers.map { it.id }.toSet()
+    val spoolIds: Set<SpoolId> = spools.map { it.id }.toSet()
+    val assignmentSlots: Set<SlotKey> = assignments.map { it.slot }.toSet()
+}
+
 private fun invalid(reason: String): SnapshotBuildResult.Failure = SnapshotBuildResult.Failure(
     SnapshotSyncFailure.InvalidSnapshot(reason)
 )
@@ -278,6 +314,3 @@ private fun returnFailure(failure: SnapshotSyncFailure): Nothing = throw Snapsho
 private class SnapshotSyncAbort(val failure: SnapshotSyncFailure) : Throwable()
 
 private const val MAX_STATUS_CONCURRENCY = 4
-private const val CONFIRMED_A1_EXTERNAL_AMS_ID = 255
-private const val CONFIRMED_A1_EXTERNAL_TRAY_ID = 0
-private const val CONFIRMED_A1_EXTERNAL_LABEL = "External"

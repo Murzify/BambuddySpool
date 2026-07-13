@@ -9,6 +9,7 @@ import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.Spool
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.domain.UnsupportedTopologyReason
 import com.murzify.bambuddyspool.core.domain.VirtualTray
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
@@ -62,6 +63,27 @@ class AtomicSnapshotSynchronizerTest {
         val result = synchronizer.sync(SnapshotSyncTrigger.Manual)
 
         assertIs<SnapshotSyncResult.Failure>(result)
+        assertEquals(0, store.publishAttempts)
+        assertEquals(99, store.currentSnapshot?.spools?.single()?.id?.value)
+    }
+
+    @Test
+    fun unsupportedTopologyFailsClosedAndDoesNotPublish() = runTest {
+        val repository = FakeRepository(
+            statusResults = mutableMapOf(
+                printerId(1).value to BambuddyNetworkResult.Success(
+                    status(printerValue = 1, virtualTray = VirtualTray(id = 42, label = "Unknown"))
+                )
+            )
+        )
+        val store = FakeSnapshotStore(existingSnapshot = completeSnapshot(spoolValue = 99))
+        val synchronizer = synchronizer(repository = repository, store = store)
+
+        val result = synchronizer.sync(SnapshotSyncTrigger.Manual)
+
+        val failure = assertIs<SnapshotSyncResult.Failure>(result)
+        val topologyFailure = assertIs<SnapshotSyncFailure.UnsupportedTopology>(failure.reason)
+        assertEquals(UnsupportedTopologyReason.UnknownExternalSlotMapping, topologyFailure.failure.reason)
         assertEquals(0, store.publishAttempts)
         assertEquals(99, store.currentSnapshot?.spools?.single()?.id?.value)
     }
@@ -291,10 +313,13 @@ private fun completeSnapshot(spoolValue: Long): DomainSnapshot = DomainSnapshot(
 
 private fun printer(value: Long): Printer = Printer(id = printerId(value), name = "Printer $value")
 
-private fun status(printerValue: Long): PrinterStatus = PrinterStatus(
+private fun status(
+    printerValue: Long,
+    virtualTray: VirtualTray = VirtualTray(id = 255, label = "External")
+): PrinterStatus = PrinterStatus(
     printer = printer(printerValue),
     connected = true,
-    virtualTrays = listOf(VirtualTray(id = 255, label = "External"))
+    virtualTrays = listOf(virtualTray)
 )
 
 private fun spool(value: Long): Spool = Spool(

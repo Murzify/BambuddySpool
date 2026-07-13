@@ -22,6 +22,7 @@ enum class StaleOrOfflineReason {
 data class UnsupportedTopology(val reason: UnsupportedTopologyReason) : DomainFailure
 
 enum class UnsupportedTopologyReason {
+    MissingPhysicalSlots,
     UnknownExternalSlotMapping,
     PartialExternalSlotMapping,
     ConflictingCoordinates,
