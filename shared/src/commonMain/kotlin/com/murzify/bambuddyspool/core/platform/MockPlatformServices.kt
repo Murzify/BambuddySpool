@@ -2,6 +2,11 @@ package com.murzify.bambuddyspool.core.platform
 
 import kotlinx.coroutines.Dispatchers
 
+/**
+ * Creates deterministic no-op services for the Stage 1 platform shells and architecture tests.
+ *
+ * These bindings do not accept credentials, perform network requests, or access NFC hardware.
+ */
 fun mockPlatformServices(): PlatformServices = PlatformServices(
     secureStorage = object : SecureStorage {
         override suspend fun replace(value: SecretValue) = Unit

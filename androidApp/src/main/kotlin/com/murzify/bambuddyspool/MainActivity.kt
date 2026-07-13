@@ -12,6 +12,7 @@ import com.murzify.bambuddyspool.app.App
 import com.murzify.bambuddyspool.app.bootstrap.createRootGraph
 import com.murzify.bambuddyspool.core.platform.mockPlatformServices
 
+/** Thin Android launcher that owns lifecycle wiring and renders the shared root. */
 class MainActivity : ComponentActivity() {
     private val root by lazy {
         createRootGraph(
@@ -32,8 +33,8 @@ class MainActivity : ComponentActivity() {
 
 @Preview
 @Composable
-@Suppress("FunctionNaming")
-fun AppAndroidPreview() {
+@Suppress("FunctionNaming") // Compose entry points use UpperCamelCase by convention.
+private fun AppAndroidPreview() {
     val root = createRootGraph(
         componentContext = DefaultComponentContext(LifecycleRegistry()),
         platformServices = mockPlatformServices()

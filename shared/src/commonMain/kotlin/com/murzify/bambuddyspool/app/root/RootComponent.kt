@@ -16,17 +16,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 
+/** Immutable state exposed by the shared root component. */
 data class RootState(val destination: RootDestination = RootDestination.Home) {
     val title = destination.title
 }
+
+/** Inputs accepted by the shared root component. */
 sealed interface RootIntent {
     data class Select(val destination: RootDestination) : RootIntent
 }
-sealed interface RootEffect {
+
+internal sealed interface RootEffect {
     data class Navigate(val destination: RootDestination) : RootEffect
 }
 
-object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
+internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
     override fun reduce(state: RootState, intent: RootIntent): Reduction<RootState, RootEffect> = when (intent) {
         is RootIntent.Select -> Reduction(
             RootState(intent.destination),
@@ -38,8 +42,9 @@ object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
 @Serializable
 private enum class RootConfig { Home, Spools, Printers, Settings }
 
-data class RootChild(val title: String)
+private data class RootChild(val title: String)
 
+/** Shared Decompose root and UDF boundary rendered by both platform shells. */
 @Inject
 @SingleIn(ComponentScope::class)
 class RootComponent(componentContext: ComponentContext) :

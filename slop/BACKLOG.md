@@ -52,7 +52,7 @@ Review the foundation against the threat model: public repository safety, no pri
 Task DOD
 `docs/security/bootstrap-review.md` maps threats to controls, evidence, and owners; all Critical/High findings are fixed; secret scans pass; accepted risks reference TECHSPEC.
 
-- [ ] [INIT]-[009] Polish Foundation Code and Documentation
+- [x] [INIT]-[009] Polish Foundation Code and Documentation
 Task Context
 Format and inspect naming, visibility, package ownership, public contract KDoc, README, and ADRs. Avoid abstractions without a current consumer.
 Task DOD

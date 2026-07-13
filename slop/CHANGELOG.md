@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[INIT]-[009]` by narrowing foundation implementation visibility, documenting the remaining public application and platform contracts, and replacing the template README with accurate clean-checkout, architecture, security, and CI guidance.
+- Aligned CI with the repository's Microsoft JDK 17 daemon requirement, constrained Spotless to production source roots and Gradle scripts, and retained the Compose Android resource wiring required by device-test packaging.
+- Triaged Stage 1 warnings and suppressions, refreshed resolved toolchain notes, and verified the complete Android, iOS, Xcode, quality, architecture, repository-policy, and configuration-cache matrix.
 - Completed `[INIT]-[008]` with an adversarial foundation review covering the tracked tree, reachable history, Android manifests, CI, caches, dependencies, logging, signing, and private configuration boundaries.
 - Closed the High backup/migration finding with explicit legacy, cloud, and device-transfer exclusions; made cleartext deny-by-default; restricted CI cache writes to trusted pushes; and expanded strong secret/signing signatures.
 - Recorded threat-to-control evidence and assigned remaining implementation and release debt to the corresponding security backlog tasks without claiming unimplemented product controls.

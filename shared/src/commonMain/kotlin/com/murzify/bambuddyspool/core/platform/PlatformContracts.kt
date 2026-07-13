@@ -2,42 +2,58 @@ package com.murzify.bambuddyspool.core.platform
 
 import kotlinx.coroutines.CoroutineDispatcher
 
+/** Marker for a secret representation whose production implementation must not reveal its value. */
 interface SecretValue
 
+/** Device-bound storage boundary for the single Bambuddy API token. */
 interface SecureStorage {
     suspend fun replace(value: SecretValue)
     suspend fun clear()
     suspend fun isPresent(): Boolean
 }
 
+/** Platform-neutral result of one NFC observation. */
 data class NfcObservation(val fingerprint: String, val payload: String?)
 
+/** Narrow NFC capability required by shared workflows. */
 interface NfcService {
     val isAvailable: Boolean
     suspend fun read(): NfcObservation
 }
 
+/** Opens platform-owned settings that cannot be changed from shared code. */
 interface PlatformSettingsNavigator {
     fun openNfcSettings()
 }
+
+/** Copies only content that has already passed structural redaction. */
 interface ClipboardService {
     fun copyRedacted(text: String): Boolean
 }
+
+/** Emits non-essential platform haptic feedback. */
 interface HapticsService {
     fun success()
 }
 
+/** Coroutine dispatchers owned by the platform runtime. */
 interface AppDispatchers {
     val main: CoroutineDispatcher
     val io: CoroutineDispatcher
 }
 
+/** Explicit transport exceptions approved for one configured server policy. */
 data class NetworkPolicy(val allowCleartext: Boolean, val allowInvalidTls: Boolean)
+
+/** Opaque platform HTTP engine consumed by the later shared network layer. */
 interface PlatformHttpEngine
+
+/** Creates a platform HTTP engine for an already validated network policy. */
 interface PlatformNetworkFactory {
     fun create(policy: NetworkPolicy): PlatformHttpEngine
 }
 
+/** Explicit platform capabilities supplied when a shell creates the shared graph. */
 data class PlatformServices(
     val secureStorage: SecureStorage,
     val nfc: NfcService,

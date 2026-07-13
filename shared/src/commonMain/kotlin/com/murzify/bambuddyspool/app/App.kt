@@ -18,8 +18,9 @@ import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.app.root.RootComponent
 import com.murzify.bambuddyspool.app.root.RootIntent
 
+/** Renders the shared application root supplied by a platform shell. */
 @Composable
-@Suppress("FunctionNaming")
+@Suppress("FunctionNaming") // Compose entry points use UpperCamelCase by convention.
 fun App(root: RootComponent) {
     val state by root.state.collectAsState()
     MaterialTheme {

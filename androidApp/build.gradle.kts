@@ -61,6 +61,7 @@ android {
         checkReleaseBuilds = true
         htmlReport = true
         sarifReport = true
+        // TECHSPEC 18.6 keeps warnings visible while errors remain blocking.
         warningsAsErrors = false
     }
 }

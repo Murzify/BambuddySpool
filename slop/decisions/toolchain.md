@@ -76,7 +76,7 @@ Metro 0.12.0 through 1.3.1 publish their Gradle plugins for JVM 21, so they cann
 
 ### AGP D8 metadata warning
 
-AGP 9.0.1's bundled D8 may emit verbose warnings while parsing newer Kotlin metadata during debug dexing. The matrix uses Kotlin 2.3.20, which is accepted by Metro and Compose. Any remaining D8 warning must remain visible and be re-evaluated during `[INIT]-[005]` quality gates and before release/minification; replacing AGP's bundled D8 ad hoc is not accepted in this spike.
+AGP 9.0.1's bundled D8 was initially identified as capable of emitting verbose warnings while parsing newer Kotlin metadata. No such warning remained in the final Stage 1 debug/release matrix with Kotlin 2.3.20. This is retained as historical toolchain context; if it reappears, it must remain visible and be re-evaluated before release/minification rather than bypassed with an ad hoc D8 replacement.
 
 ### Kotlin/Native first run
 
@@ -84,11 +84,11 @@ The first native build downloads the Kotlin/Native compiler dependencies into th
 
 ### Framework bundle identifier warning
 
-Kotlin/Native warns that it derives the shared framework bundle identifier from the framework name. This does not block compilation or shell linking. A final explicit framework identity belongs with topology/release configuration, not this compatibility spike.
+Resolved by `[INIT]-[007]`: the shared framework bundle identifier is derived from the centralized package metadata and set explicitly. The final Stage 1 native and Xcode builds emit no derived-bundle-identifier warning.
 
 ### iOS deployment-target warning
 
-The Xcode shell build reports that a `Shared` libicu object was built for iOS Simulator 18.5 while the application deployment target is 18.2. The complete shell still links and Xcode reports `BUILD SUCCEEDED`, so this is not a compatibility-spike blocker. The iOS shell and shared framework deployment targets must be aligned during `[INIT]-[003]` before treating the shell configuration as release-ready. Xcode also selected the first matching Simulator destination and skipped AppIntents metadata because the app has no AppIntents dependency; both are expected for this generic unsigned shell build.
+Resolved by `[INIT]-[003]`: the iOS shell and shared framework deployment targets are aligned at 18.5, and the final Stage 1 shell build emits no deployment-target mismatch. Xcode may still select the first matching Simulator destination and skip AppIntents metadata because the app has no AppIntents dependency; both are expected for this generic unsigned shell build.
 
 ## ADR assessment
 

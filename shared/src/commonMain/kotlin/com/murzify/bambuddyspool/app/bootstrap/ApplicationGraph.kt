@@ -17,7 +17,7 @@ import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
 
 @DependencyGraph(ApplicationScope::class)
-interface ApplicationGraph {
+internal interface ApplicationGraph {
     val secureStorage: SecureStorage
     val nfcService: NfcService
     val settingsNavigator: PlatformSettingsNavigator
@@ -50,9 +50,10 @@ internal interface ComponentGraph {
     }
 }
 
-class RootGraph internal constructor(val applicationGraph: ApplicationGraph, val rootComponent: RootComponent)
+/** Retains the shared root component exposed to a platform shell. */
+class RootGraph internal constructor(internal val applicationGraph: ApplicationGraph, val rootComponent: RootComponent)
 
-fun createApplicationGraph(platformServices: PlatformServices): ApplicationGraph =
+internal fun createApplicationGraph(platformServices: PlatformServices): ApplicationGraph =
     createGraphFactory<ApplicationGraph.Factory>().create(
         secureStorage = platformServices.secureStorage,
         nfcService = platformServices.nfc,
@@ -63,6 +64,7 @@ fun createApplicationGraph(platformServices: PlatformServices): ApplicationGraph
         networkFactory = platformServices.network
     )
 
+/** Builds a retained shared root from an explicit lifecycle context and platform-service bundle. */
 fun createRootGraph(componentContext: ComponentContext, platformServices: PlatformServices): RootGraph {
     val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(componentContext)
     return RootGraph(

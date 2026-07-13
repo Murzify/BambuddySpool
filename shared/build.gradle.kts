@@ -37,6 +37,9 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.fromTarget(jvmTargetVersion)
         }
+        androidResources {
+            enable = true
+        }
         withHostTest {}
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
