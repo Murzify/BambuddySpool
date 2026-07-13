@@ -1,0 +1,18 @@
+{
+  "fixture_schema": "bambuddy-endpoint-fixtures/v1",
+  "endpoint_id": "auth-me",
+  "provenance": "Bambuddy OpenAPI 0.2.4.7; synthetic public fixture",
+  "synthetic": true,
+  "categories": {
+    "minimal_valid": {
+      "payload": { "id": 1, "username": "synthetic-user", "role": "synthetic-role", "is_active": true, "is_admin": false, "created_at": "2000-01-01T00:00:00Z" }
+    },
+    "representative_valid": {
+      "payload": { "id": 1, "username": "synthetic-user", "email": null, "role": "synthetic-role", "is_active": true, "is_admin": false, "auth_source": "synthetic", "groups": [], "permissions": [], "created_at": "2000-01-01T00:00:00Z", "synthetic_additive_field": "ignored" }
+    },
+    "incompatible": {
+      "expected_result": "IncompatibleApiResponse",
+      "payload": { "id": "not-an-integer", "username": "synthetic-user", "role": "synthetic-role", "is_active": true, "is_admin": false, "created_at": "2000-01-01T00:00:00Z" }
+    }
+  }
+}

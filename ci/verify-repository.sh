@@ -18,6 +18,17 @@ if git grep -IlE -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|BAMBUDDY_(BASE_UR
     fail "a tracked file appears to contain credentials or private-instance configuration"
 fi
 
+contract_fixtures=shared/src/commonTest/resources/contracts
+if [[ -d "${contract_fixtures}" ]]; then
+    if grep -REqi '"(access_code|api_key|ip_address|serial_number|tag_uid|token|tray_uuid)"[[:space:]]*:' "${contract_fixtures}"; then
+        fail "contract fixtures must not contain private credential, network, device, or tag fields"
+    fi
+    if grep -REi 'https?://|(^|[^0-9])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9]|$)' "${contract_fixtures}" |
+        grep -Ev '"(provenance|reference_version)"' >/dev/null; then
+        fail "contract fixtures must not contain hosts or network addresses"
+    fi
+fi
+
 if grep -Eq '(^|[="[:space:]])(latest\.|[^"[:space:]]*\+|[^"[:space:]]*-SNAPSHOT)' gradle/libs.versions.toml; then
     fail "dynamic or snapshot dependency versions are forbidden"
 fi

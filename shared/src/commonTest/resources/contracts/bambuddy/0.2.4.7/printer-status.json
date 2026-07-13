@@ -1,0 +1,16 @@
+{
+  "fixture_schema": "bambuddy-endpoint-fixtures/v1",
+  "endpoint_id": "printer-status",
+  "provenance": "Bambuddy OpenAPI 0.2.4.7; synthetic public fixture",
+  "synthetic": true,
+  "categories": {
+    "minimal_valid": { "payload": { "id": 1, "name": "Synthetic Printer", "connected": false } },
+    "representative_valid": {
+      "payload": { "id": 1, "name": "Synthetic Printer", "connected": true, "vt_tray": [{ "id": 0, "tray_id_name": null, "tray_color": null, "tray_type": null, "remain": 0 }], "synthetic_additive_field": "ignored" }
+    },
+    "incompatible": {
+      "expected_result": "IncompatibleApiResponse",
+      "payload": { "id": 1, "name": "Synthetic Printer", "connected": true, "vt_tray": {} }
+    }
+  }
+}

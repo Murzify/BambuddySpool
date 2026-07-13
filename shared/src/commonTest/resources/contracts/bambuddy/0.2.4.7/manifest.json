@@ -1,0 +1,165 @@
+{
+  "manifest_schema": "bambuddy-sanitized-contract/v1",
+  "reference_version": "0.2.4.7",
+  "provenance": "Bambuddy OpenAPI 0.2.4.7; locally inspected read-only; synthetic public subset",
+  "synthetic": true,
+  "json_policy": {
+    "ignore_unknown_keys": true,
+    "explicit_nulls": false,
+    "is_lenient": false,
+    "coerce_input_values": false
+  },
+  "operations": [
+    {
+      "id": "auth-me",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": [], "body_fields": [] },
+      "used_fields": [],
+      "limits": { "response_bytes": 1048576, "error_response_bytes": 262144 },
+      "fixture": "auth-me.json"
+    },
+    {
+      "id": "printers-list",
+      "method": "GET",
+      "path": "/api/v1/printers/",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": [], "body_fields": [] },
+      "used_fields": [
+        { "path": "[].id", "type": "integer", "nullable": false },
+        { "path": "[].name", "type": "string", "nullable": false },
+        { "path": "[].model", "type": "string", "nullable": true },
+        { "path": "[].is_active", "type": "boolean", "nullable": false }
+      ],
+      "excluded_sensitive_fields": ["serial_number", "ip_address", "access_code"],
+      "limits": { "response_bytes": null, "response_limit_note": "Not specified by TECHSPEC", "error_response_bytes": 262144 },
+      "fixture": "printers-list.json"
+    },
+    {
+      "id": "printer-status",
+      "method": "GET",
+      "path": "/api/v1/printers/{printer_id}/status",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": ["printer_id: positive integer"], "query_parameters": [], "body_fields": [] },
+      "used_fields": [
+        { "path": "id", "type": "integer", "nullable": false },
+        { "path": "name", "type": "string", "nullable": false },
+        { "path": "connected", "type": "boolean", "nullable": false },
+        { "path": "vt_tray", "type": "array", "nullable": false },
+        { "path": "vt_tray[].id", "type": "integer", "nullable": false },
+        { "path": "vt_tray[].tray_id_name", "type": "string", "nullable": true }
+      ],
+      "limits": { "response_bytes": 4194304, "error_response_bytes": 262144 },
+      "fixture": "printer-status.json"
+    },
+    {
+      "id": "spools-list",
+      "method": "GET",
+      "path": "/api/v1/inventory/spools?include_archived=true",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": ["include_archived: true"], "body_fields": [] },
+      "used_fields": [
+        { "path": "[].id", "type": "integer", "nullable": false },
+        { "path": "[].material", "type": "string", "nullable": false },
+        { "path": "[].subtype", "type": "string", "nullable": true },
+        { "path": "[].color_name", "type": "string", "nullable": true },
+        { "path": "[].rgba", "type": "string", "nullable": true },
+        { "path": "[].brand", "type": "string", "nullable": true },
+        { "path": "[].label_weight", "type": "integer", "nullable": false },
+        { "path": "[].core_weight", "type": "integer", "nullable": false },
+        { "path": "[].weight_used", "type": "number", "nullable": false },
+        { "path": "[].last_used", "type": "date-time", "nullable": true },
+        { "path": "[].archived_at", "type": "date-time", "nullable": true },
+        { "path": "[].created_at", "type": "date-time", "nullable": false },
+        { "path": "[].updated_at", "type": "date-time", "nullable": false }
+      ],
+      "limits": { "response_bytes": 67108864, "error_response_bytes": 262144 },
+      "fixture": "spools-list.json"
+    },
+    {
+      "id": "spool-detail",
+      "method": "GET",
+      "path": "/api/v1/inventory/spools/{spool_id}",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": ["spool_id: positive integer"], "query_parameters": [], "body_fields": [] },
+      "used_fields": [
+        { "path": "id", "type": "integer", "nullable": false },
+        { "path": "material", "type": "string", "nullable": false },
+        { "path": "subtype", "type": "string", "nullable": true },
+        { "path": "color_name", "type": "string", "nullable": true },
+        { "path": "rgba", "type": "string", "nullable": true },
+        { "path": "brand", "type": "string", "nullable": true },
+        { "path": "label_weight", "type": "integer", "nullable": false },
+        { "path": "core_weight", "type": "integer", "nullable": false },
+        { "path": "weight_used", "type": "number", "nullable": false },
+        { "path": "last_used", "type": "date-time", "nullable": true },
+        { "path": "archived_at", "type": "date-time", "nullable": true },
+        { "path": "created_at", "type": "date-time", "nullable": false },
+        { "path": "updated_at", "type": "date-time", "nullable": false }
+      ],
+      "limits": { "response_bytes": null, "response_limit_note": "Not specified by TECHSPEC", "error_response_bytes": 262144 },
+      "fixture": "spool-detail.json"
+    },
+    {
+      "id": "assignments-list",
+      "method": "GET",
+      "path": "/api/v1/inventory/assignments",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": [], "body_fields": [] },
+      "used_fields": [
+        { "path": "[].id", "type": "integer", "nullable": false },
+        { "path": "[].spool_id", "type": "integer", "nullable": false },
+        { "path": "[].printer_id", "type": "integer", "nullable": false },
+        { "path": "[].ams_id", "type": "integer", "nullable": false },
+        { "path": "[].tray_id", "type": "integer", "nullable": false },
+        { "path": "[].created_at", "type": "date-time", "nullable": false },
+        { "path": "[].configured", "type": "boolean", "nullable": false },
+        { "path": "[].pending_config", "type": "boolean", "nullable": false },
+        { "path": "[].ams_label", "type": "string", "nullable": true }
+      ],
+      "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
+      "fixture": "assignments-list.json"
+    },
+    {
+      "id": "assignments-by-printer",
+      "method": "GET",
+      "path": "/api/v1/inventory/assignments?printer_id=<id>",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": ["printer_id: positive integer"], "body_fields": [] },
+      "used_fields": [
+        { "path": "[].id", "type": "integer", "nullable": false },
+        { "path": "[].spool_id", "type": "integer", "nullable": false },
+        { "path": "[].printer_id", "type": "integer", "nullable": false },
+        { "path": "[].ams_id", "type": "integer", "nullable": false },
+        { "path": "[].tray_id", "type": "integer", "nullable": false },
+        { "path": "[].created_at", "type": "date-time", "nullable": false },
+        { "path": "[].configured", "type": "boolean", "nullable": false },
+        { "path": "[].pending_config", "type": "boolean", "nullable": false },
+        { "path": "[].ams_label", "type": "string", "nullable": true }
+      ],
+      "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
+      "fixture": "assignments-by-printer.json"
+    },
+    {
+      "id": "assignment-create",
+      "method": "POST",
+      "path": "/api/v1/inventory/assignments",
+      "auth": "X-API-Key header",
+      "request": { "path_parameters": [], "query_parameters": [], "body_fields": ["printer_id", "ams_id", "tray_id", "spool_id"] },
+      "used_fields": [
+        { "path": "id", "type": "integer", "nullable": false },
+        { "path": "spool_id", "type": "integer", "nullable": false },
+        { "path": "printer_id", "type": "integer", "nullable": false },
+        { "path": "ams_id", "type": "integer", "nullable": false },
+        { "path": "tray_id", "type": "integer", "nullable": false },
+        { "path": "created_at", "type": "date-time", "nullable": false },
+        { "path": "configured", "type": "boolean", "nullable": false },
+        { "path": "pending_config", "type": "boolean", "nullable": false },
+        { "path": "ams_label", "type": "string", "nullable": true }
+      ],
+      "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
+      "fixture": "assignment-create.json"
+    }
+  ]
+}

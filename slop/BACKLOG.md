@@ -60,7 +60,7 @@ Format, Detekt, Lint, architecture checks, and smoke builds pass; warnings and T
 
 ## Stage 2. Data Model, API, Persistence, and Synchronization
 
-- [ ] [DATA]-[001] Create the Sanitized API Contract and Fixtures
+- [x] [DATA]-[001] Create the Sanitized API Contract and Fixtures
 Task Context
 Document only the mandatory Bambuddy 0.2.4.7 endpoints. For every critical endpoint add minimal-valid, representative-valid, and incompatible synthetic JSON preserving real shape/nullability and additive fields. Exclude private hosts, tokens, access codes, personal inventory, and the private OpenAPI export.
 Task DOD

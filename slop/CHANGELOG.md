@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[001]` with a machine-readable manifest for the eight mandatory Bambuddy 0.2.4.7 operations and synthetic minimal-valid, representative-valid, and incompatible fixtures for every endpoint form.
+- Recorded request parameters, authentication, used wire fields with types/nullability, response limits, JSON policy, provenance, and explicit unknown limits without retaining the private OpenAPI export or live data.
+- Added host contract tests and repository policy checks for endpoint/category completeness, JSON validity, additive fields, synthetic provenance, incompatible evidence, and exclusion of private connection, credential, device, and tag material.
 - Completed `[INIT]-[009]` by narrowing foundation implementation visibility, documenting the remaining public application and platform contracts, and replacing the template README with accurate clean-checkout, architecture, security, and CI guidance.
 - Aligned CI with the repository's Microsoft JDK 17 daemon requirement, constrained Spotless to production source roots and Gradle scripts, and retained the Compose Android resource wiring required by device-test packaging.
 - Triaged Stage 1 warnings and suppressions, refreshed resolved toolchain notes, and verified the complete Android, iOS, Xcode, quality, architecture, repository-policy, and configuration-cache matrix.
