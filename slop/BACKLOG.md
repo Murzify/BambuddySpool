@@ -66,7 +66,7 @@ Document only the mandatory Bambuddy 0.2.4.7 endpoints. For every critical endpo
 Task DOD
 The manifest records method, path, auth, used fields, request, and limits; all fixture categories exist, state provenance, remain reviewable, and pass secret/private-data scans.
 
-- [ ] [DATA]-[002] Implement Strict Common Domain Models
+- [x] [DATA]-[002] Implement Strict Common Domain Models
 Task Context
 Implement typed IDs, immutable `SlotKey`, printer/spool/slot/assignment models, generation-bound assignment commands, typed assignment results, NFC mutation outcomes, and typed failures for incompatibility, stale/offline state, unsupported topology, and verification mismatch. Raw exceptions and UI strings are not domain models.
 Task DOD

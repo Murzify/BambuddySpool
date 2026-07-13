@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[002]` with strict common domain models for typed printer/spool IDs, bounded slot identity, inventory entities, generation-bound assignment commands, assignment results, NFC tag mutation outcomes, and typed domain failures.
+- Added focused common domain tests for valid/invalid identifiers, exact `SlotKey` equality, generation validation, success/failure taxonomy, and tag mutation result states; verified shared tests, Detekt, formatting, and iOS compilation.
 - Completed `[DATA]-[001]` with a machine-readable manifest for the eight mandatory Bambuddy 0.2.4.7 operations and synthetic minimal-valid, representative-valid, and incompatible fixtures for every endpoint form.
 - Recorded request parameters, authentication, used wire fields with types/nullability, response limits, JSON policy, provenance, and explicit unknown limits without retaining the private OpenAPI export or live data.
 - Added host contract tests and repository policy checks for endpoint/category completeness, JSON validity, additive fields, synthetic provenance, incompatible evidence, and exclusion of private connection, credential, device, and tag material.
