@@ -7,16 +7,18 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
+val packageName = gradle.extensions.extraProperties["BAMBUDDY_PACKAGE_NAME"] as String
+val versionCodeValue = (gradle.extensions.extraProperties["BAMBUDDY_VERSION_CODE"] as String).toInt()
+val versionNameValue = gradle.extensions.extraProperties["BAMBUDDY_VERSION_NAME"] as String
+val jvmTargetVersion = libs.versions.jvm.target.get()
+
 detekt {
-    buildUponDefaultConfig = true
-    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
-    basePath = rootProject.projectDir
     source.setFrom(files("src/main/kotlin"))
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
+        jvmTarget = JvmTarget.fromTarget(jvmTargetVersion)
     }
 }
 dependencies {
@@ -29,15 +31,15 @@ dependencies {
 }
 
 android {
-    namespace = "com.murzify.bambuddyspool"
+    namespace = packageName
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.murzify.bambuddyspool"
+        applicationId = packageName
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionCodeValue
+        versionName = versionNameValue
     }
     packaging {
         resources {
@@ -50,8 +52,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.toVersion(jvmTargetVersion)
+        targetCompatibility = JavaVersion.toVersion(jvmTargetVersion)
     }
     lint {
         abortOnError = true

@@ -40,7 +40,7 @@ Remove generated demo screens/resources, obsolete Gradle settings, unused depend
 Task DOD
 No template/demo code or sensitive/local artifact remains; smoke builds pass after cleanup; the diff contains only justified files.
 
-- [ ] [INIT]-[007] Deduplicate Build and Architecture Configuration
+- [x] [INIT]-[007] Deduplicate Build and Architecture Configuration
 Task Context
 Centralize dependency versions in the catalog and remove repeated SDK values, package names, compiler flags, repositories, and conventions. Do not add Gradle modules without a measurable need.
 Task DOD

@@ -10,10 +10,10 @@ plugins {
     alias(libs.plugins.metro)
 }
 
+val packageName = gradle.extensions.extraProperties["BAMBUDDY_PACKAGE_NAME"] as String
+val jvmTargetVersion = libs.versions.jvm.target.get()
+
 detekt {
-    buildUponDefaultConfig = true
-    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
-    basePath = rootProject.projectDir
     source.setFrom(files("src"))
 }
 
@@ -25,17 +25,17 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
-            binaryOption("bundleId", "com.murzify.bambuddyspool.shared")
+            binaryOption("bundleId", "$packageName.shared")
         }
     }
 
     androidLibrary {
-        namespace = "com.murzify.bambuddyspool.shared"
+        namespace = "$packageName.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
         compilerOptions {
-            jvmTarget = JvmTarget.JVM_17
+            jvmTarget = JvmTarget.fromTarget(jvmTargetVersion)
         }
         withHostTest {}
         withDeviceTest {

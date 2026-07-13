@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[INIT]-[007]` with shared Gradle/Xcode product metadata, catalog-owned JVM and ktlint versions, package-derived Android/shared/framework identifiers, and root-level Detekt defaults.
+- Enforced settings-owned dependency repositories, retained the two required Gradle repository scopes, and confirmed configuration-cache storage and reuse without adding a build-logic module.
+- Verified aligned Android debug/release, iOS framework/Simulator, and Xcode shell metadata while preserving the `shared`, `androidApp`, and `iosApp` topology.
 - Completed `[INIT]-[006]` by removing generated greeting/platform samples, arithmetic placeholder tests, Compose template artwork, launcher icons, preview assets, stale resource settings, and unused dependency aliases.
 - Replaced the common placeholder assertion with a root-navigation invariant, retained the dependency toolchain smoke coverage and required Ktor engines, and kept the Android device test as a supported-device/library-load smoke boundary.
 - Expanded `.gitignore` coverage for local configuration, build output, IDE metadata, secrets, signing material, and Xcode user state while preserving required Gradle wrapper and iOS project files.
