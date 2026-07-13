@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[INIT]-[006]` by removing generated greeting/platform samples, arithmetic placeholder tests, Compose template artwork, launcher icons, preview assets, stale resource settings, and unused dependency aliases.
+- Replaced the common placeholder assertion with a root-navigation invariant, retained the dependency toolchain smoke coverage and required Ktor engines, and kept the Android device test as a supported-device/library-load smoke boundary.
+- Expanded `.gitignore` coverage for local configuration, build output, IDE metadata, secrets, signing material, and Xcode user state while preserving required Gradle wrapper and iOS project files.
 - Completed `[INIT]-[005]` with nine blocking GitHub Actions jobs covering wrapper/config validation, common tests, Android builds and host tests, iOS compilation/tests, formatting, Detekt, Android Lint, architecture checks, and baseline dependency/security inspection.
 - Added JDK 17 setup, immutable action revisions, pull-request-only cancellation, safe Gradle caching, and repository checks that reject tracked local credentials, signing files, private keys, dynamic dependency versions, and mutable third-party action references.
 - Marked device execution, Compose UI harness coverage, and authoritative license/CVE auditing as explicit CI limitations so they cannot be mistaken for completed release gates.

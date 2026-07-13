@@ -34,7 +34,7 @@ Create GitHub Actions for push, pull request, and manual dispatch. Add wrapper/c
 Task DOD
 Workflow syntax and documented local equivalents pass; JDK 17 and safe caches are configured; quality failures block CI; incomplete jobs report their limitation instead of false success; credentials and signing material are never cached.
 
-- [ ] [INIT]-[006] Remove Bootstrap Debris
+- [x] [INIT]-[006] Remove Bootstrap Debris
 Task Context
 Remove generated demo screens/resources, obsolete Gradle settings, unused dependencies, IDE artifacts, and build outputs. Preserve required wrapper and iOS files. Update `.gitignore` for local, build, secret, IDE, and signing artifacts.
 Task DOD
