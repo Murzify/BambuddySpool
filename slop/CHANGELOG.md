@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[006]` with common settings and credential contracts for canonical Bambuddy base URLs, configured origin metadata, default printer, HTTP consent origin, TLS override hostname, settings schema version, and explicit nonsecret DataStore field names.
+- Added a non-printing `SecretValue`, a secure token-store boundary, and validation-first connection/token replacement orchestration with tests for HTTP/TLS consent scoping and failure preservation.
 - Completed `[DATA]-[005]` with Room KMP entities, DAO query surfaces, persistence/domain projections, SlotKey uniqueness constraints, generation-based cleanup methods, and URL-change cache clearing surfaces for the Bambuddy snapshot cache.
 - Added an indexed spool browsing contract using default active/nonarchived/nonempty filters, explicit default index usage, stable recently-used/name/ID sorting, and an FTS4 search table over spool name, manufacturer, material, and color name.
 - Documented the version 1 baseline schema in `slop/database/schema-v1.sql` while retaining the current no-Room-compiler setup and avoiding speculative KSP/toolchain changes.

@@ -1,16 +1,10 @@
 package com.murzify.bambuddyspool.core.platform
 
+import com.murzify.bambuddyspool.core.security.SecureTokenStore
 import kotlinx.coroutines.CoroutineDispatcher
 
-/** Marker for a secret representation whose production implementation must not reveal its value. */
-interface SecretValue
-
 /** Device-bound storage boundary for the single Bambuddy API token. */
-interface SecureStorage {
-    suspend fun replace(value: SecretValue)
-    suspend fun clear()
-    suspend fun isPresent(): Boolean
-}
+interface SecureStorage : SecureTokenStore
 
 /** Platform-neutral result of one NFC observation. */
 data class NfcObservation(val fingerprint: String, val payload: String?)

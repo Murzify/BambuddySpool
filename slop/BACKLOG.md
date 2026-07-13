@@ -90,7 +90,7 @@ Create printers, printer_slots, spools, assignments, and sync_metadata with Slot
 Task DOD
 Schema and baseline migration are documented/exported; constraints prevent ambiguous slots; indexed query plans scale to the synthetic dataset; DAO returns persistence/domain projections, never transport DTOs; iOS targets compile.
 
-- [ ] [DATA]-[006] Implement Settings and Credential Contracts
+- [x] [DATA]-[006] Implement Settings and Credential Contracts
 Task Context
 Store canonical URL, origin metadata, default printer, origin-scoped HTTP consent, hostname-scoped TLS override, and schema version in DataStore. Store only the token in SecureStorage behind a non-printing secret type. Define atomic connection/token replacement so failed validation preserves active data.
 Task DOD

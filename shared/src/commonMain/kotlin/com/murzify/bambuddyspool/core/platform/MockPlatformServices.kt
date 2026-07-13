@@ -1,5 +1,6 @@
 package com.murzify.bambuddyspool.core.platform
 
+import com.murzify.bambuddyspool.core.security.SecretValue
 import kotlinx.coroutines.Dispatchers
 
 /**
@@ -9,9 +10,9 @@ import kotlinx.coroutines.Dispatchers
  */
 fun mockPlatformServices(): PlatformServices = PlatformServices(
     secureStorage = object : SecureStorage {
-        override suspend fun replace(value: SecretValue) = Unit
-        override suspend fun clear() = Unit
-        override suspend fun isPresent(): Boolean = false
+        override suspend fun replaceToken(value: SecretValue) = Unit
+        override suspend fun clearToken() = Unit
+        override suspend fun hasToken(): Boolean = false
     },
     nfc = object : NfcService {
         override val isAvailable: Boolean = false
