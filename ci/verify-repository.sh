@@ -10,11 +10,11 @@ if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
     fail ".env.local must never be tracked"
 fi
 
-if git ls-files | grep -Eq '\.(jks|keystore|p12|mobileprovision)$'; then
+if git ls-files | grep -Eqi '\.(jks|keystore|p12|p8|pem|key|der|mobileprovision|provisionprofile)$'; then
     fail "signing material must never be tracked"
 fi
 
-if git grep -IlE -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|BAMBUDDY_(BASE_URL|OPENAPI_URL|API_KEY)[[:space:]]*=[[:space:]]*[^[:space:]$<{]+' -- . >/dev/null; then
+if git grep -IlE -- '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----|BAMBUDDY_(BASE_URL|OPENAPI_URL|API_KEY)[[:space:]]*=[[:space:]]*[^[:space:]$<{]+|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[A-Za-z0-9._~-]{20,}' -- . >/dev/null; then
     fail "a tracked file appears to contain credentials or private-instance configuration"
 fi
 

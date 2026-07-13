@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[INIT]-[008]` with an adversarial foundation review covering the tracked tree, reachable history, Android manifests, CI, caches, dependencies, logging, signing, and private configuration boundaries.
+- Closed the High backup/migration finding with explicit legacy, cloud, and device-transfer exclusions; made cleartext deny-by-default; restricted CI cache writes to trusted pushes; and expanded strong secret/signing signatures.
+- Recorded threat-to-control evidence and assigned remaining implementation and release debt to the corresponding security backlog tasks without claiming unimplemented product controls.
 - Completed `[INIT]-[007]` with shared Gradle/Xcode product metadata, catalog-owned JVM and ktlint versions, package-derived Android/shared/framework identifiers, and root-level Detekt defaults.
 - Enforced settings-owned dependency repositories, retained the two required Gradle repository scopes, and confirmed configuration-cache storage and reuse without adding a build-logic module.
 - Verified aligned Android debug/release, iOS framework/Simulator, and Xcode shell metadata while preserving the `shared`, `androidApp`, and `iosApp` topology.

@@ -46,7 +46,7 @@ Centralize dependency versions in the catalog and remove repeated SDK values, pa
 Task DOD
 No dynamic or duplicate versions remain; module metadata agrees; configuration cache works; the topology remains limited to `shared`, `androidApp`, and `iosApp`, with documented exceptions.
 
-- [ ] [INIT]-[008] Review Foundation Security
+- [x] [INIT]-[008] Review Foundation Security
 Task Context
 Review the foundation against the threat model: public repository safety, no private OpenAPI/signing material/tokens, no analytics/crash reporting/persistent diagnostics, safe cleartext defaults, backup posture, and secret-safe CI output.
 Task DOD
