@@ -96,7 +96,7 @@ Store canonical URL, origin metadata, default printer, origin-scoped HTTP consen
 Task DOD
 Host changes reset TLS consent while port/path changes do not; origin changes reset HTTP consent; tokens cannot be revealed or serialized; atomic replacement and failure preservation are tested.
 
-- [ ] [DATA]-[007] Implement Bounded Ktor Repositories
+- [x] [DATA]-[007] Implement Bounded Ktor Repositories
 Task Context
 Implement mandatory operations with Android and Darwin engines, X-API-Key credential provider, 3-second connect and 10-second request timeouts, URL builders, and decompressed response limits from TECHSPEC. Disable unrestricted redirects and expose hooks for the security policy. Return domain values and typed errors only.
 Task DOD

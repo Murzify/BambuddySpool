@@ -8,7 +8,7 @@ package com.murzify.bambuddyspool.core.security
  */
 class SecretValue private constructor(private val value: String) {
 
-    internal fun <T> useForTrustedRequestBoundary(block: (String) -> T): T = block(value)
+    internal suspend fun <T> useForTrustedRequestBoundary(block: suspend (String) -> T): T = block(value)
 
     override fun toString(): String = REDACTED
 

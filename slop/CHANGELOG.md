@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[007]` with bounded Ktor repositories for the mandatory Bambuddy operations, typed network errors, URL-builder endpoint construction with base-path support, `X-API-Key` credential injection, and response-size enforcement before parsing.
+- Added Android OkHttp and iOS Darwin engine factories with disabled automatic redirects and 3-second connect / 10-second request timeouts, plus security-policy hooks for later redirect/TLS enforcement.
+- Added MockEngine coverage for every mandatory operation, credential redaction, oversized responses, base paths, and distinct 4xx, 5xx, transport, contract, and TLS/security-policy failures.
 - Completed `[DATA]-[006]` with common settings and credential contracts for canonical Bambuddy base URLs, configured origin metadata, default printer, HTTP consent origin, TLS override hostname, settings schema version, and explicit nonsecret DataStore field names.
 - Added a non-printing `SecretValue`, a secure token-store boundary, and validation-first connection/token replacement orchestration with tests for HTTP/TLS consent scoping and failure preservation.
 - Completed `[DATA]-[005]` with Room KMP entities, DAO query surfaces, persistence/domain projections, SlotKey uniqueness constraints, generation-based cleanup methods, and URL-change cache clearing surfaces for the Bambuddy snapshot cache.
