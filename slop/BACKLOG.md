@@ -84,7 +84,7 @@ Use Serialization with `ignoreUnknownKeys=true`, `explicitNulls=false`, `isLenie
 Task DOD
 All contract fixtures decode or fail predictably; required fields never receive silent defaults; DTOs/raw bodies do not reach domain/UI; exact assignment JSON and configured/pending variants are tested.
 
-- [ ] [DATA]-[005] Design the Room KMP Schema and Queries
+- [x] [DATA]-[005] Design the Room KMP Schema and Queries
 Task Context
 Create printers, printer_slots, spools, assignments, and sync_metadata with SlotKey uniqueness, snapshot generation, timestamp, cleanup semantics, indexes, and projections. Support indexed spool search/filter/sort and printer/assignment views. UI observes Room and never retains a full snapshot.
 Task DOD
