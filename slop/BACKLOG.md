@@ -22,7 +22,7 @@ Implement ADR-001. `shared` owns KMP product UI and business logic; `androidApp`
 Task DOD
 The module/source-set topology matches TECHSPEC; both shells render shared Compose UI; common code contains no Android types; Android debug/release and API 23 smoke builds pass; README documents the structure.
 
-- [ ] [INIT]-[004] Establish Packages, UDF, Navigation, and Metro DI
+- [x] [INIT]-[004] Establish Packages, UDF, Navigation, and Metro DI
 Task Context
 Create the prescribed `app`, `core`, and `feature` package boundaries. Add a Decompose root, immutable UDF contract (`StateFlow`, intents, pure reducers, effects), and Metro constructor-injected graph with Application/Component scopes. Service locators and runtime string keys are forbidden. Define narrow platform interfaces for secure storage, NFC, settings, clipboard, haptics, dispatchers, and networking.
 Task DOD

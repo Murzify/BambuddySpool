@@ -1,5 +1,11 @@
 # Agent Documentation Changelog
 
+## 2026-07-13
+
+- Completed `[INIT]-[004]` with the prescribed `app`, `core`, and `feature` package boundaries, a Decompose root, an immutable UDF contract, and Metro application/component graphs.
+- Added narrow secure storage, NFC, settings, clipboard, haptics, dispatchers, and networking interfaces with explicit compile-time mock bindings for both platform shells.
+- Added Android host architecture gates for platform imports, domain framework imports, cross-feature imports, Android shell domain imports, and large `expect` services.
+
 ## 2026-07-12
 
 - Completed `[INIT]-[003]` with the ADR-001 `shared` / `androidApp` / `iosApp` topology, thin platform shells, Android host/device test boundaries, and aligned iOS deployment targets.

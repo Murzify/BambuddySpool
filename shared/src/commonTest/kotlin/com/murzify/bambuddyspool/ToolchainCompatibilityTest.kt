@@ -3,8 +3,6 @@ package com.murzify.bambuddyspool
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.arkivanov.decompose.ComponentContext
-import dev.zacsweers.metro.Inject
 import io.ktor.client.HttpClient
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -20,12 +18,6 @@ private data class ToolchainRoomEntity(
 private data class ToolchainPayload(
     val value: String,
 )
-
-@Inject
-internal class ToolchainInjectedDependency
-
-private fun componentInstanceKey(context: ComponentContext): String =
-    context.instanceKeeper.toString()
 
 class ToolchainCompatibilityTest {
 
