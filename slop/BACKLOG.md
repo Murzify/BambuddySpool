@@ -72,7 +72,7 @@ Implement typed IDs, immutable `SlotKey`, printer/spool/slot/assignment models, 
 Task DOD
 Domain imports no UI, DI, transport, persistence, or platform APIs; invalid identifiers/coordinates cannot be silently created; SlotKey equality is exact; model tests and iOS compilation pass.
 
-- [ ] [DATA]-[003] Implement the Canonical NFC Payload Codec
+- [x] [DATA]-[003] Implement the Canonical NFC Payload Codec
 Task Context
 Implement `bambuddy-spool://spool/<positive-decimal-id>` in common code. Scheme is case-insensitive; host is exactly `spool`; require one path segment and reject query, fragment, signs, whitespace, non-decimal input, and overflow. Accept leading zeros on read and canonicalize on write. Model all TECHSPEC read classifications; multiple records are unsupported.
 Task DOD
