@@ -114,7 +114,7 @@ Use `PrinterStatus.vt_tray` as the physical source and assignments as state/evid
 Task DOD
 Pure common tests cover A1, multiple slots, AMS, missing, contradictory, and unknown data; unsupported topology blocks mutation with a typed reason; mapping constants are not duplicated.
 
-- [ ] [DATA]-[010] Implement Cache and Availability Projections
+- [x] [DATA]-[010] Implement Cache and Availability Projections
 Task Context
 Expose Room/DataStore flows for all features with InitialLoading, Content, ContentRefreshing, and FatalErrorWithoutCache plus stale/error/mutation availability. Cached viewing survives offline/auth failures; mutations require fresh server context. Implement database-backed cancellable search and default-printer lifecycle rules.
 Task DOD

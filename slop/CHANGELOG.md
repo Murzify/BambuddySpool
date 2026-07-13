@@ -2,6 +2,10 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[010]` with common cache projection contracts for `InitialLoading`, `Content`, `ContentRefreshing`, and `FatalErrorWithoutCache`, plus stale state, nonblocking refresh errors, and typed mutation availability.
+- Added a Room-backed projection adapter over DAO flows so feature code can observe printer, slot, spool detail, and lazy limit-offset spool page/search projections without importing Room, entities, DTOs, or raw responses.
+- Added cancellable/debounced database-backed spool search and deterministic common tests proving stale cached content remains visible, mutations are disabled with reasons, no-cache failures are fatal, and superseded search flows are cancelled.
+- Added default-printer lifecycle rules and tests for single-printer auto-selection, multiple-printer deferral, and deleted/default-missing transitions.
 - Completed `[DATA]-[009]` with a fail-closed common slot topology resolver, centralized A1 mapping, multiple-known-slot representation, label precedence, AMS read-only slots, and typed unsupported-topology mutation blocking.
 - Updated atomic snapshot sync to use the resolver and reject unsupported topology atomically instead of persisting partial slot rows.
 - Completed `[DATA]-[008]` with an atomic snapshot synchronizer that fetches printers, bounded-concurrency status/topology, archived-inclusive spools, and assignments before publishing through a generation-guarded `SnapshotStore`.

@@ -14,6 +14,9 @@ interface PrinterDao {
     @Query(OBSERVE_PRINTER_LIST_QUERY)
     fun observePrinters(): Flow<List<PrinterListProjection>>
 
+    @Query("SELECT COUNT(*) FROM printers WHERE is_active = 1")
+    fun observeActivePrinterCount(): Flow<Int>
+
     @Query("DELETE FROM printers WHERE snapshot_generation < :snapshotGeneration")
     suspend fun deletePrintersBeforeGeneration(snapshotGeneration: Long)
 }
@@ -56,6 +59,9 @@ interface SpoolDao {
 
     @Query(OBSERVE_SPOOL_QUERY)
     fun observeSpool(spoolId: Long): Flow<List<SpoolListProjection>>
+
+    @Query("SELECT COUNT(*) FROM spools")
+    fun observeSpoolCount(): Flow<Int>
 
     @Query("DELETE FROM spools WHERE snapshot_generation < :snapshotGeneration")
     suspend fun deleteSpoolsBeforeGeneration(snapshotGeneration: Long)
