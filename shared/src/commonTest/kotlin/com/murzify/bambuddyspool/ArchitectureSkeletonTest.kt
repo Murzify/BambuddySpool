@@ -30,7 +30,7 @@ class ArchitectureSkeletonTest {
         val services = mockPlatformServices()
         val graph = createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = services,
+            platformServices = services
         )
 
         assertSame(services.secureStorage, graph.applicationGraph.secureStorage)

@@ -35,7 +35,7 @@ interface ApplicationGraph {
             @Provides clipboardService: ClipboardService,
             @Provides hapticsService: HapticsService,
             @Provides dispatchers: AppDispatchers,
-            @Provides networkFactory: PlatformNetworkFactory,
+            @Provides networkFactory: PlatformNetworkFactory
         ): ApplicationGraph
     }
 }
@@ -46,16 +46,11 @@ internal interface ComponentGraph {
 
     @DependencyGraph.Factory
     fun interface Factory {
-        fun create(
-            @Provides componentContext: ComponentContext,
-        ): ComponentGraph
+        fun create(@Provides componentContext: ComponentContext): ComponentGraph
     }
 }
 
-class RootGraph internal constructor(
-    val applicationGraph: ApplicationGraph,
-    val rootComponent: RootComponent,
-)
+class RootGraph internal constructor(val applicationGraph: ApplicationGraph, val rootComponent: RootComponent)
 
 fun createApplicationGraph(platformServices: PlatformServices): ApplicationGraph =
     createGraphFactory<ApplicationGraph.Factory>().create(
@@ -65,16 +60,13 @@ fun createApplicationGraph(platformServices: PlatformServices): ApplicationGraph
         clipboardService = platformServices.clipboard,
         hapticsService = platformServices.haptics,
         dispatchers = platformServices.dispatchers,
-        networkFactory = platformServices.network,
+        networkFactory = platformServices.network
     )
 
-fun createRootGraph(
-    componentContext: ComponentContext,
-    platformServices: PlatformServices,
-): RootGraph {
+fun createRootGraph(componentContext: ComponentContext, platformServices: PlatformServices): RootGraph {
     val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(componentContext)
     return RootGraph(
         applicationGraph = createApplicationGraph(platformServices),
-        rootComponent = componentGraph.rootComponent,
+        rootComponent = componentGraph.rootComponent
     )
 }

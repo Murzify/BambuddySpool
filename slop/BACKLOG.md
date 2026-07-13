@@ -28,7 +28,7 @@ Create the prescribed `app`, `core`, and `feature` package boundaries. Add a Dec
 Task DOD
 Android and iOS mock root graphs compile and render; compile-time bindings pass; architecture tests reject forbidden imports; Activity contains no domain decisions; no large `expect/actual` service exists.
 
-- [ ] [INIT]-[005] Add Baseline Quality Gates and CI
+- [x] [INIT]-[005] Add Baseline Quality Gates and CI
 Task Context
 Create GitHub Actions for push, pull request, and manual dispatch. Add wrapper/config, common, Android build/host/device/UI, iOS, lint/Detekt/architecture, and dependency/license/security jobs. Cancel superseded PR runs only. Configure formatting, Lint, Detekt, and forbidden-import checks.
 Task DOD

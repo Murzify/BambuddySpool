@@ -37,31 +37,37 @@ class CommonArchitectureTest {
         val featureRoot = File("src/commonMain/kotlin/com/murzify/bambuddyspool/feature")
         val featureFiles = kotlinFiles(featureRoot)
         assertTrue(featureFiles.isNotEmpty())
-        assertFalse(featureFiles.any { file ->
-            val owner = file.relativeTo(featureRoot).invariantSeparatorsPath.substringBefore('/')
-            hasCrossFeatureImport(file.readText(), owner)
-        })
+        assertFalse(
+            featureFiles.any { file ->
+                val owner = file.relativeTo(featureRoot).invariantSeparatorsPath.substringBefore('/')
+                hasCrossFeatureImport(file.readText(), owner)
+            }
+        )
     }
 
     @Test
     fun androidShellRejectsDomainAndFeatureImports() {
         val shellFiles = kotlinFiles(File("../androidApp/src/main/kotlin"))
         assertTrue(shellFiles.isNotEmpty())
-        assertFalse(shellFiles.any { source ->
-            source.readText().lineSequence().any { line ->
-                line.startsWith("import com.murzify.bambuddyspool.core.domain.") ||
-                    line.startsWith("import com.murzify.bambuddyspool.core.application.") ||
-                    line.startsWith("import com.murzify.bambuddyspool.feature.")
+        assertFalse(
+            shellFiles.any { source ->
+                source.readText().lineSequence().any { line ->
+                    line.startsWith("import com.murzify.bambuddyspool.core.domain.") ||
+                        line.startsWith("import com.murzify.bambuddyspool.core.application.") ||
+                        line.startsWith("import com.murzify.bambuddyspool.feature.")
+                }
             }
-        })
+        )
     }
 
     @Test
     fun commonMainRejectsLargeExpectServices() {
         val commonMain = kotlinFiles(File("src/commonMain/kotlin"))
-        assertFalse(commonMain.any { file ->
-            file.readText().contains(Regex("\\bexpect\\s+(class|interface|object)\\b"))
-        })
+        assertFalse(
+            commonMain.any { file ->
+                file.readText().contains(Regex("\\bexpect\\s+(class|interface|object)\\b"))
+            }
+        )
     }
 
     private fun hasForbiddenPlatformImport(source: String): Boolean = source.lineSequence().any { line ->
@@ -93,7 +99,7 @@ class CommonArchitectureTest {
             "import dev.zacsweers.metro.",
             "import io.ktor.",
             "import java.",
-            "import platform.",
+            "import platform."
         )
         val FEATURE_IMPORT = Regex("^import com\\.murzify\\.bambuddyspool\\.feature\\.([^.]+)\\.")
     }

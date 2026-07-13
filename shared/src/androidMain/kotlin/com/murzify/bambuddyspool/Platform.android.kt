@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package com.murzify.bambuddyspool
 
 import android.os.Build

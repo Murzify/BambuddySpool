@@ -4,20 +4,16 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import io.ktor.client.HttpClient
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Entity
-private data class ToolchainRoomEntity(
-    @PrimaryKey val id: Long,
-)
+private data class ToolchainRoomEntity(@PrimaryKey val id: Long)
 
 @Serializable
-private data class ToolchainPayload(
-    val value: String,
-)
+private data class ToolchainPayload(val value: String)
 
 class ToolchainCompatibilityTest {
 

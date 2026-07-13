@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: "true"
+
+jobs:
+  validate-wrapper-and-config:
+    name: Validate wrapper and configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+
+      - name: Validate repository policy
+        run: ./ci/verify-repository.sh
+
+      - name: Validate Gradle configuration
+        run: ./gradlew help
+
+  common-tests:
+    name: Common tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Run common test suite on the Android host target
+        run: >-
+          ./gradlew :shared:testAndroidHostTest
+          --tests com.murzify.bambuddyspool.ArchitectureSkeletonTest
+          --tests com.murzify.bambuddyspool.SharedCommonTest
+          --tests com.murzify.bambuddyspool.ToolchainCompatibilityTest
+
+  android-build:
+    name: Android debug and release builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Build unsigned application variants
+        run: ./gradlew :androidApp:assembleDebug :androidApp:assembleRelease
+
+  android-host-tests:
+    name: Android host and architecture tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Run Android host tests
+        run: ./gradlew :shared:testAndroidHostTest
+
+  android-device-tests:
+    name: Android device tests [LIMITED - compile only]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Compile Android device tests
+        run: ./gradlew :shared:assembleAndroidDeviceTest
+      - name: Report device execution limitation
+        run: >-
+          ./ci/report-limitation.sh
+          "Device tests compile, but CI does not yet execute the required API 23 and modern-device matrix. Physical NFC acceptance is also outside hosted-runner coverage."
+
+  compose-ui-tests:
+    name: Compose UI tests [LIMITED - harness pending]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Compile shared Compose UI
+        run: ./gradlew :androidApp:assembleDebug
+      - name: Report UI test limitation
+        run: >-
+          ./ci/report-limitation.sh
+          "Shared Compose UI compiles, but no Compose UI test source set or executable harness exists yet; this job does not claim UI behavior coverage."
+
+  ios-compile-and-tests:
+    name: iOS compile, tests, and shell build
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Compile iOS device target and run Simulator tests
+        run: ./gradlew :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test
+      - name: Build iOS Simulator shell
+        run: >-
+          xcodebuild
+          -project iosApp/iosApp.xcodeproj
+          -scheme iosApp
+          -sdk iphonesimulator
+          -configuration Debug
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+  lint-detekt-architecture:
+    name: Formatting, Lint, Detekt, and architecture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Run blocking quality gates
+        run: ./gradlew spotlessCheck detekt :androidApp:lintDebug :shared:testAndroidHostTest
+
+  dependency-license-security:
+    name: Dependency, license, and security baseline [LIMITED]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up build
+        uses: ./.github/actions/setup-build
+      - name: Enforce repository supply-chain policy
+        run: ./ci/verify-repository.sh
+      - name: Resolve dependency inventories
+        run: ./gradlew :shared:dependencies :androidApp:dependencies
+      - name: Report license and vulnerability limitation
+        run: >-
+          ./ci/report-limitation.sh
+          "Dependency inventories resolve and baseline secret/pinning rules block failures. Authoritative KMP license classification and exploitable CVE gating are not implemented by INIT-005 and must block release claims until later hardening."

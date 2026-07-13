@@ -17,9 +17,15 @@ interface NfcService {
     suspend fun read(): NfcObservation
 }
 
-interface PlatformSettingsNavigator { fun openNfcSettings() }
-interface ClipboardService { fun copyRedacted(text: String): Boolean }
-interface HapticsService { fun success() }
+interface PlatformSettingsNavigator {
+    fun openNfcSettings()
+}
+interface ClipboardService {
+    fun copyRedacted(text: String): Boolean
+}
+interface HapticsService {
+    fun success()
+}
 
 interface AppDispatchers {
     val main: CoroutineDispatcher
@@ -28,7 +34,9 @@ interface AppDispatchers {
 
 data class NetworkPolicy(val allowCleartext: Boolean, val allowInvalidTls: Boolean)
 interface PlatformHttpEngine
-interface PlatformNetworkFactory { fun create(policy: NetworkPolicy): PlatformHttpEngine }
+interface PlatformNetworkFactory {
+    fun create(policy: NetworkPolicy): PlatformHttpEngine
+}
 
 data class PlatformServices(
     val secureStorage: SecureStorage,
@@ -37,5 +45,5 @@ data class PlatformServices(
     val clipboard: ClipboardService,
     val haptics: HapticsService,
     val dispatchers: AppDispatchers,
-    val network: PlatformNetworkFactory,
+    val network: PlatformNetworkFactory
 )

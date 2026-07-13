@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+- Completed `[INIT]-[005]` with nine blocking GitHub Actions jobs covering wrapper/config validation, common tests, Android builds and host tests, iOS compilation/tests, formatting, Detekt, Android Lint, architecture checks, and baseline dependency/security inspection.
+- Added JDK 17 setup, immutable action revisions, pull-request-only cancellation, safe Gradle caching, and repository checks that reject tracked local credentials, signing files, private keys, dynamic dependency versions, and mutable third-party action references.
+- Marked device execution, Compose UI harness coverage, and authoritative license/CVE auditing as explicit CI limitations so they cannot be mistaken for completed release gates.
 - Completed `[INIT]-[004]` with the prescribed `app`, `core`, and `feature` package boundaries, a Decompose root, an immutable UDF contract, and Metro application/component graphs.
 - Added narrow secure storage, NFC, settings, clipboard, haptics, dispatchers, and networking interfaces with explicit compile-time mock bindings for both platform shells.
 - Added Android host architecture gates for platform imports, domain framework imports, cross-feature imports, Android shell domain imports, and large `expect` services.

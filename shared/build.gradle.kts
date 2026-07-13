@@ -5,8 +5,16 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.metro)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    basePath = rootProject.projectDir
+    source.setFrom(files("src"))
 }
 
 kotlin {
@@ -20,12 +28,12 @@ kotlin {
             binaryOption("bundleId", "com.murzify.bambuddyspool.shared")
         }
     }
-    
+
     androidLibrary {
         namespace = "com.murzify.bambuddyspool.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
-    
+
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
         }
@@ -39,7 +47,7 @@ kotlin {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)

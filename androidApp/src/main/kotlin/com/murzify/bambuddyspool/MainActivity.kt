@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
     private val root by lazy {
         createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = mockPlatformServices(),
+            platformServices = mockPlatformServices()
         ).rootComponent
     }
 
@@ -32,10 +32,11 @@ class MainActivity : ComponentActivity() {
 
 @Preview
 @Composable
+@Suppress("FunctionNaming")
 fun AppAndroidPreview() {
     val root = createRootGraph(
         componentContext = DefaultComponentContext(LifecycleRegistry()),
-        platformServices = mockPlatformServices(),
+        platformServices = mockPlatformServices()
     ).rootComponent
     App(root)
 }

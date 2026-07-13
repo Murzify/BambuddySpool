@@ -34,6 +34,25 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Android device-test APK: `./gradlew :shared:assembleAndroidDeviceTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
 
+### Continuous integration
+
+GitHub Actions runs the baseline quality gates on pushes, pull requests, and manual dispatches. The workflow uses JDK 17, immutable action revisions, read-only repository permissions, and Gradle caches that exclude credentials, signing material, and `.env.local`. Superseded runs are cancelled only for pull requests.
+
+Run the corresponding checks locally with JDK 17:
+
+- Wrapper, workflow, and repository policy: `./gradlew help && ./ci/verify-repository.sh`
+- Shared common tests: `./gradlew :shared:testAndroidHostTest`
+- Android builds and host tests: `./gradlew :androidApp:assembleDebug :androidApp:assembleRelease :shared:testAndroidHostTest`
+- Android device-test compilation: `./gradlew :shared:assembleAndroidDeviceTest`
+- iOS compilation and tests: `./gradlew :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test`
+- iOS shell build: `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build`
+- Formatting, static analysis, Android Lint, and architecture tests: `./gradlew spotlessCheck detekt :androidApp:lintDebug :shared:testAndroidHostTest`
+- Dependency inventories: `./gradlew :shared:dependencies :androidApp:dependencies`
+
+Use `./gradlew spotlessApply` to apply the configured Kotlin and Gradle Kotlin DSL formatting rules.
+
+Three gates are deliberately marked as limited in the workflow: device tests are compiled but not executed on the API 23 and modern-device matrix; the Compose UI test harness is not yet available; and dependency inventories plus the repository scan are not an authoritative license or CVE audit. These limitations block claims of full release coverage instead of being reported as completed checks.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
