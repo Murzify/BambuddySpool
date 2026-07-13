@@ -78,7 +78,7 @@ Implement `bambuddy-spool://spool/<positive-decimal-id>` in common code. Scheme 
 Task DOD
 Codec has no Android dependency; exhaustive parsing/round-trip tests pass; unsupported payloads are never partially recovered; no tag-locking API exists.
 
-- [ ] [DATA]-[004] Implement DTO Validation and Domain Mapping
+- [x] [DATA]-[004] Implement DTO Validation and Domain Mapping
 Task Context
 Use Serialization with `ignoreUnknownKeys=true`, `explicitNulls=false`, `isLenient=false`, and `coerceInputValues=false`. Keep DTOs inside network code. Validate all identification/mutation/verification fields strictly and map failures to `IncompatibleApiResponse`.
 Task DOD

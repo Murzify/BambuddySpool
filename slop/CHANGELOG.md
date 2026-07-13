@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[004]` with configured Bambuddy network JSON policy, internal Serialization DTOs, strict DTO-to-domain mapping, assignment request encoding/validation, and `IncompatibleApiResponse` failures for malformed or invalid required fields.
+- Added common mapping tests for assignment JSON, configured and pending assignment variants, unknown additive fields, and invalid request/response fields; added fixture-backed host mapping tests over the sanitized Bambuddy 0.2.4.7 contract set.
 - Completed `[DATA]-[003]` with a common canonical NFC payload codec for `bambuddy-spool://spool/<positive-decimal-id>`, strict parse failures, leading-zero read canonicalization, common NDEF-shaped read classification, and exhaustive common tests.
 - Completed `[DATA]-[002]` with strict common domain models for typed printer/spool IDs, bounded slot identity, inventory entities, generation-bound assignment commands, assignment results, NFC tag mutation outcomes, and typed domain failures.
 - Added focused common domain tests for valid/invalid identifiers, exact `SlotKey` equality, generation validation, success/failure taxonomy, and tag mutation result states; verified shared tests, Detekt, formatting, and iOS compilation.
