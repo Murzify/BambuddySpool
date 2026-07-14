@@ -12,6 +12,8 @@ import com.murzify.bambuddyspool.core.platform.PlatformNetworkFactory
 import com.murzify.bambuddyspool.core.platform.PlatformServices
 import com.murzify.bambuddyspool.core.platform.PlatformSettingsNavigator
 import com.murzify.bambuddyspool.core.platform.SecureStorage
+import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
+import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
@@ -46,7 +48,11 @@ internal interface ComponentGraph {
 
     @DependencyGraph.Factory
     fun interface Factory {
-        fun create(@Provides componentContext: ComponentContext, @Provides nfcService: NfcService): ComponentGraph
+        fun create(
+            @Provides componentContext: ComponentContext,
+            @Provides nfcService: NfcService,
+            @Provides spoolProjectionRepository: CacheProjectionRepository
+        ): ComponentGraph
     }
 }
 
@@ -65,11 +71,16 @@ internal fun createApplicationGraph(platformServices: PlatformServices): Applica
     )
 
 /** Builds a retained shared root from an explicit lifecycle context and platform-service bundle. */
-fun createRootGraph(componentContext: ComponentContext, platformServices: PlatformServices): RootGraph {
+fun createRootGraph(
+    componentContext: ComponentContext,
+    platformServices: PlatformServices,
+    spoolProjectionRepository: CacheProjectionRepository = EmptyCacheProjectionRepository
+): RootGraph {
     val applicationGraph = createApplicationGraph(platformServices)
     val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(
         componentContext = componentContext,
-        nfcService = applicationGraph.nfcService
+        nfcService = applicationGraph.nfcService,
+        spoolProjectionRepository = spoolProjectionRepository
     )
     return RootGraph(
         applicationGraph = applicationGraph,

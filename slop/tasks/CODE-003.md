@@ -19,6 +19,9 @@ routes assignment/tag actions to the transient root workflow boundary.
 
 ## Implementation Details
 
+- The shared component graph injects a non-null `CacheProjectionRepository` into `RootComponent` and then
+  `SpoolsComponent`; platform shells may explicitly supply the Room-backed implementation as it becomes available.
+  The graph uses an explicit empty implementation only for the existing mock shell, never a nullable repository.
 - `SpoolsComponent` feeds `CacheProjectionRepository.observeSpoolSearch` with the default 100-item page. The
   repository remains the sole owner of indexed Room/FTS querying, 150ms debounce, and cancellation of superseded
   searches, so a 25k-record inventory is not filtered or materialized in Compose.
@@ -33,11 +36,17 @@ routes assignment/tag actions to the transient root workflow boundary.
 - Manual-assignment and tag-link buttons enter the root's transient workflow boundary. The later assignment and NFC
   tasks own their operation state machines; this task neither creates an assignment command nor writes a tag.
 - A selected spool absent from the current projection shows the precise relink action for a deleted tagged spool.
+- Details use the repository's dedicated `observeSpool` projection rather than the first list page, so an existing
+  spool outside the initial 100 rows is never misclassified as deleted. Its coroutine scope is cancelled with the
+  Decompose lifecycle.
+- `SpoolsScreen` is owned by `feature/spools`, exposes stable semantics tags for search, assignment, link, and
+  relink actions, and has compiled Android device Compose coverage for enabled fresh and disabled stale actions.
 
 ## Verification
 
 ```text
 ./gradlew spotlessApply :shared:testAndroidHostTest
+./gradlew :shared:compileAndroidDeviceTest
 ./gradlew spotlessCheck detekt :androidApp:lintDebug
 ./gradlew :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test
 ./ci/verify-repository.sh
@@ -56,7 +65,7 @@ No private `.env.local` file was read and no Bambuddy request was made.
 - [x] Offline/stale cached content remains viewable and mutation entry actions are disabled with a reason.
 - [x] Spool metadata, color text, amount, assignment, manual-assignment, and tag-link/relink actions are rendered
   from shared Compose resources and common state.
-- [x] Reducer/restoration and existing projection-pipeline tests cover the feature's actions and data path.
+- [x] Reducer/restoration, projection-pipeline, and Android device Compose semantic-action tests cover the feature.
 
 ## Follow-up Ownership
 

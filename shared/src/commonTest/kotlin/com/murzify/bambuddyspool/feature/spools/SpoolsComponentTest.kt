@@ -4,6 +4,7 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.statekeeper.StateKeeperDispatcher
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.SpoolListFilters
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -42,7 +43,8 @@ class SpoolsComponentTest {
     }
 
     private fun component(stateKeeper: StateKeeperDispatcher): SpoolsComponent = SpoolsComponent(
-        componentContext = DefaultComponentContext(activeLifecycle(), stateKeeper = stateKeeper)
+        componentContext = DefaultComponentContext(activeLifecycle(), stateKeeper = stateKeeper),
+        repository = EmptyCacheProjectionRepository
     )
 
     private fun activeLifecycle(): LifecycleRegistry = LifecycleRegistry().apply {

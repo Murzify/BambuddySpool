@@ -6,6 +6,7 @@ import com.arkivanov.essenty.statekeeper.StateKeeperDispatcher
 import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
+import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -64,7 +65,8 @@ class RootComponentTest {
         nfcService = object : NfcService {
             override val isAvailable = true
             override suspend fun read(): NfcObservation = error("Not used by root navigation tests")
-        }
+        },
+        spoolProjectionRepository = EmptyCacheProjectionRepository
     )
 
     private fun activeLifecycle(): LifecycleRegistry = LifecycleRegistry().apply {

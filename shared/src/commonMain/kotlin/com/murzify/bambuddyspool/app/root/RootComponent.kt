@@ -11,6 +11,7 @@ import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
 import com.murzify.bambuddyspool.core.platform.NfcService
+import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -155,11 +156,14 @@ private data class RootChild(val component: DestinationStackComponent)
 /** Shared Decompose root and UDF boundary rendered by both platform shells. */
 @Inject
 @SingleIn(ComponentScope::class)
-class RootComponent(componentContext: ComponentContext, nfcService: NfcService) :
-    ComponentContext by componentContext,
+class RootComponent(
+    componentContext: ComponentContext,
+    nfcService: NfcService,
+    spoolProjectionRepository: CacheProjectionRepository
+) : ComponentContext by componentContext,
     UdfComponent<RootState, RootIntent> {
     /** The shared browser owns safe search/filter/detail restoration for the Spools destination. */
-    val spoolsComponent = SpoolsComponent(componentContext)
+    val spoolsComponent = SpoolsComponent(componentContext, spoolProjectionRepository)
     private val navigation = StackNavigation<RootConfig>()
     private val destinationComponents = mutableMapOf<RootDestination, DestinationStackComponent>()
     private val restored = stateKeeper.consume("root-navigation", RestoredRootState.serializer())

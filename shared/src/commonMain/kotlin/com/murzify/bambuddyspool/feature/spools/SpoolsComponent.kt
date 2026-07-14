@@ -1,6 +1,7 @@
 package com.murzify.bambuddyspool.feature.spools
 
 import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
@@ -15,10 +16,12 @@ import com.murzify.bambuddyspool.core.projections.SpoolSummaryProjection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -28,7 +31,8 @@ data class SpoolsState(
     val query: String = "",
     val filters: SpoolListFilters = SpoolListFilters(),
     val selectedSpoolId: SpoolId? = null,
-    val projection: CacheProjectionState<PagedResult<SpoolSummaryProjection>> = CacheProjectionState.InitialLoading
+    val projection: CacheProjectionState<PagedResult<SpoolSummaryProjection>> = CacheProjectionState.InitialLoading,
+    val detailProjection: CacheProjectionState<SpoolSummaryProjection?> = CacheProjectionState.InitialLoading
 )
 
 sealed interface SpoolsIntent {
@@ -65,14 +69,13 @@ private data class RestoredSpoolsFilters(
  * Shared spool browser controller. Search is delegated to the Room projection's cancellable 150ms pipeline instead
  * of filtering an in-memory list, keeping the common UI practical for a 25k-record inventory.
  */
-class SpoolsComponent(
-    componentContext: ComponentContext,
-    repository: CacheProjectionRepository? = null,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-) : UdfComponent<SpoolsState, SpoolsIntent> {
+class SpoolsComponent(componentContext: ComponentContext, repository: CacheProjectionRepository) :
+    UdfComponent<SpoolsState, SpoolsIntent> {
     private val restored = componentContext.stateKeeper.consume("spool-browser", RestoredSpoolsState.serializer())
     private val mutableState = MutableStateFlow(restored.toState())
     private val queries = MutableStateFlow(mutableState.value.toSearchQuery())
+    private val selectedSpoolIds = MutableStateFlow(mutableState.value.selectedSpoolId)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override val state: StateFlow<SpoolsState> = mutableState.asStateFlow()
 
@@ -80,7 +83,8 @@ class SpoolsComponent(
         componentContext.stateKeeper.register("spool-browser", RestoredSpoolsState.serializer()) {
             mutableState.value.toRestoredState()
         }
-        repository?.let(::observeRepository)
+        componentContext.lifecycle.doOnDestroy { scope.cancel() }
+        observeRepository(repository)
     }
 
     override fun accept(intent: SpoolsIntent) {
@@ -89,14 +93,25 @@ class SpoolsComponent(
             is SpoolsIntent.SearchChanged, is SpoolsIntent.FiltersChanged ->
                 queries.value =
                     mutableState.value.toSearchQuery()
-            is SpoolsIntent.OpenDetail, SpoolsIntent.CloseDetail -> Unit
+            is SpoolsIntent.OpenDetail, SpoolsIntent.CloseDetail ->
+                selectedSpoolIds.value =
+                    mutableState.value.selectedSpoolId
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun observeRepository(repository: CacheProjectionRepository) {
         scope.launch {
             repository.observeSpoolSearch(queries, SPOOL_PAGE).collectLatest { projection ->
                 mutableState.update { it.copy(projection = projection) }
+            }
+        }
+        scope.launch {
+            selectedSpoolIds.flatMapLatest { selectedId ->
+                selectedId?.let(repository::observeSpool)
+                    ?: kotlinx.coroutines.flow.flowOf(CacheProjectionState.InitialLoading)
+            }.collectLatest { projection ->
+                mutableState.update { it.copy(detailProjection = projection) }
             }
         }
     }

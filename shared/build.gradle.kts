@@ -58,6 +58,7 @@ kotlin {
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.testExt.junit)
             implementation(libs.kotlin.test)
+            implementation(libs.compose.uiTest)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

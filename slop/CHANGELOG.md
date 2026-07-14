@@ -12,6 +12,8 @@
   are disabled unless the projection grants fresh mutation availability.
 - Added transient manual-assignment and NFC-tag-link entry intents, plus a precise deleted-spool relink path. Those
   intents deliberately retain no operation authorization, NFC session, or mutation state across recreation.
+- Wired the Spools component to a required cache-projection graph boundary, moved the screen into `feature/spools`,
+  and added lifecycle cancellation, dedicated detail projections, stable UI semantics, and Android device UI tests.
 - Completed `[CODE]-[002]` with a shared Decompose/UDF root for Home, Spools, Printers, and Settings, responsive
   bottom navigation below 600 dp and a navigation rail at wider widths, plus explicit transient root workflow state.
 - Added independent, safely restorable Decompose child histories for every primary destination. Credentials,
