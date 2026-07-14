@@ -22,6 +22,7 @@ sealed interface ConnectionFormMessage {
     data object RequiredFields : ConnectionFormMessage
     data object TestSucceeded : ConnectionFormMessage
     data object SaveSucceeded : ConnectionFormMessage
+    data object OperationFailed : ConnectionFormMessage
     data class InvalidUrl(val reason: BaseUrlParseFailureReason) : ConnectionFormMessage
     data class ValidationFailed(val reason: ConnectionValidationFailureReason) : ConnectionFormMessage
 }

@@ -70,6 +70,8 @@ No private `.env.local` file was read and no Bambuddy request was made.
 - Platform-backed secure storage, settings persistence, and network/TLS policy adapters remain the responsibilities
   established in the preceding data/security backlog. This task does not introduce any new persistence or network
   implementation.
+- The durable `ConnectionReplacementTransaction` boundary must be implemented by the production persistence layer
+  as one all-or-nothing commit; tests use an in-memory transactional fake.
 
 ## Added Backlog Tasks
 

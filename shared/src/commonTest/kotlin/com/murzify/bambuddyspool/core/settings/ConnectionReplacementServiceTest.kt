@@ -119,7 +119,7 @@ class ConnectionReplacementServiceTest {
             )
         )
         val tokenStore = FakeTokenStore(oldToken)
-        val cache = FakeCacheMaintenance()
+        val cache = FakeReplacementTransaction(settings, tokenStore)
         val validator =
             FakeValidator(connectionResult = failure(ConnectionValidationFailureReason.AuthenticationRejected))
         val service = service(settings = settings, tokenStore = tokenStore, validator = validator, cache = cache)
@@ -154,7 +154,7 @@ class ConnectionReplacementServiceTest {
             )
         )
         val tokenStore = FakeTokenStore(oldToken)
-        val cache = FakeCacheMaintenance()
+        val cache = FakeReplacementTransaction(settings, tokenStore)
         val validator = FakeValidator(tokenResult = failure(ConnectionValidationFailureReason.AuthenticationRejected))
         val service = service(settings = settings, tokenStore = tokenStore, validator = validator, cache = cache)
 
@@ -176,7 +176,7 @@ class ConnectionReplacementServiceTest {
             ConnectionSettings(original, null, null, null)
         )
         val tokenStore = FakeTokenStore(oldToken)
-        val cache = FakeCacheMaintenance()
+        val cache = FakeReplacementTransaction(settings, tokenStore)
         val service = service(settings = settings, tokenStore = tokenStore, cache = cache)
 
         assertEquals(
@@ -212,7 +212,8 @@ class ConnectionReplacementServiceTest {
     @Test
     fun confirmedReplacementClearsTheSnapshotAndRequestsInitialSync() = runBlocking {
         val settings = FakeSettingsStore(ConnectionSettings(url("https://old.example.local"), null, null, null))
-        val cache = FakeCacheMaintenance()
+        val tokenStore = FakeTokenStore()
+        val cache = FakeReplacementTransaction(settings, tokenStore)
         val sync = FakeInitialSync()
         val service = service(settings = settings, cache = cache, sync = sync)
 
@@ -236,7 +237,7 @@ class ConnectionReplacementServiceTest {
         val activeUrl = url("https://bambuddy.example/api")
         val settings = FakeSettingsStore(ConnectionSettings(activeUrl, null, null, null))
         val tokenStore = FakeTokenStore(secret("old-token"))
-        val cache = FakeCacheMaintenance()
+        val cache = FakeReplacementTransaction(settings, tokenStore)
         val sync = FakeInitialSync()
         val service = service(settings = settings, tokenStore = tokenStore, cache = cache, sync = sync)
 
@@ -257,13 +258,13 @@ class ConnectionReplacementServiceTest {
         settings: FakeSettingsStore,
         tokenStore: FakeTokenStore = FakeTokenStore(),
         validator: FakeValidator = FakeValidator(),
-        cache: FakeCacheMaintenance = FakeCacheMaintenance(),
+        cache: FakeReplacementTransaction = FakeReplacementTransaction(settings, tokenStore),
         sync: FakeInitialSync = FakeInitialSync()
     ): ConnectionReplacementService = ConnectionReplacementService(
         settingsStore = settings,
         tokenStore = tokenStore,
         validator = validator,
-        cacheMaintenance = cache,
+        replacementTransaction = cache,
         initialSync = sync
     )
 
@@ -316,11 +317,16 @@ private class FakeValidator(
     ): ConnectionValidationResult = tokenResult
 }
 
-private class FakeCacheMaintenance : ConnectionCacheMaintenance {
+private class FakeReplacementTransaction(
+    private val settingsStore: FakeSettingsStore,
+    private val tokenStore: FakeTokenStore
+) : ConnectionReplacementTransaction {
     var clearCount: Int = 0
         private set
 
-    override suspend fun clearDomainSnapshot() {
+    override suspend fun commit(settings: ConnectionSettings, token: SecretValue) {
+        settingsStore.replace(settings)
+        tokenStore.replaceToken(token)
         clearCount++
     }
 }

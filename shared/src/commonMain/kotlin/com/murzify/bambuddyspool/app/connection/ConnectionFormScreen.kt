@@ -150,6 +150,7 @@ private fun connectionMessage(message: ConnectionFormMessage): String = stringRe
         ConnectionFormMessage.RequiredFields -> Res.string.connection_required_fields
         ConnectionFormMessage.TestSucceeded -> Res.string.connection_test_succeeded
         ConnectionFormMessage.SaveSucceeded -> Res.string.connection_save_succeeded
+        ConnectionFormMessage.OperationFailed -> Res.string.connection_unreachable
         is ConnectionFormMessage.InvalidUrl -> Res.string.connection_invalid_url
         is ConnectionFormMessage.ValidationFailed -> when (message.reason) {
             ConnectionValidationFailureReason.Unreachable -> Res.string.connection_unreachable

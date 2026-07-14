@@ -6,6 +6,8 @@ import com.murzify.bambuddyspool.core.settings.ConnectionReplacementAcknowledgem
 import com.murzify.bambuddyspool.core.settings.ConnectionReplacementResult
 import com.murzify.bambuddyspool.core.settings.ConnectionReplacementService
 import com.murzify.bambuddyspool.core.settings.ConnectionTestResult
+import com.murzify.bambuddyspool.core.settings.ConnectionValidationFailureReason
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,34 +59,49 @@ class ConnectionFormComponent(private val service: ConnectionReplacementService,
         val effects = reduce(intent)
         when {
             ConnectionFormEffect.Test in effects -> performTest(token)
-            ConnectionFormEffect.Save in effects -> performSave(token, ConnectionReplacementAcknowledgements.None)
+            ConnectionFormEffect.Save in effects ->
+                performSave(token, ConnectionReplacementAcknowledgements.None)
         }
     }
 
     private fun performTest(token: SecretValue) {
         scope.launch {
-            when (val result = service.testConnection(state.value.baseUrl, token)) {
-                ConnectionTestResult.Valid -> reduce(ConnectionFormIntent.TestSucceeded)
-                is ConnectionTestResult.InvalidBaseUrl -> reduce(ConnectionFormIntent.InvalidUrl(result.reason))
-                is ConnectionTestResult.ValidationFailed -> reduce(ConnectionFormIntent.ValidationFailed(result.reason))
+            try {
+                when (val result = service.testConnection(state.value.baseUrl, token)) {
+                    ConnectionTestResult.Valid -> reduce(ConnectionFormIntent.TestSucceeded)
+                    is ConnectionTestResult.InvalidBaseUrl -> reduce(ConnectionFormIntent.InvalidUrl(result.reason))
+                    is ConnectionTestResult.ValidationFailed ->
+                        reduce(ConnectionFormIntent.ValidationFailed(result.reason))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                reduce(ConnectionFormIntent.ValidationFailed(ConnectionValidationFailureReason.Unreachable))
             }
         }
     }
 
     private fun performSave(token: SecretValue, acknowledgements: ConnectionReplacementAcknowledgements) {
         scope.launch {
-            when (val result = service.replaceConnection(state.value.baseUrl, token, acknowledgements)) {
-                ConnectionReplacementResult.Replaced -> reduce(ConnectionFormIntent.SaveSucceeded)
-                is ConnectionReplacementResult.InvalidBaseUrl -> reduce(ConnectionFormIntent.InvalidUrl(result.reason))
-                is ConnectionReplacementResult.ValidationFailed -> reduce(
-                    ConnectionFormIntent.ValidationFailed(result.reason)
-                )
-                ConnectionReplacementResult.InstanceChangeWarningRequired -> reduce(
-                    ConnectionFormIntent.WarningRequired(ConnectionFormWarning.InstanceChange)
-                )
-                is ConnectionReplacementResult.HttpWarningRequired -> reduce(
-                    ConnectionFormIntent.WarningRequired(ConnectionFormWarning.Http)
-                )
+            try {
+                when (val result = service.replaceConnection(state.value.baseUrl, token, acknowledgements)) {
+                    ConnectionReplacementResult.Replaced -> reduce(ConnectionFormIntent.SaveSucceeded)
+                    is ConnectionReplacementResult.InvalidBaseUrl ->
+                        reduce(ConnectionFormIntent.InvalidUrl(result.reason))
+                    is ConnectionReplacementResult.ValidationFailed -> reduce(
+                        ConnectionFormIntent.ValidationFailed(result.reason)
+                    )
+                    ConnectionReplacementResult.InstanceChangeWarningRequired -> reduce(
+                        ConnectionFormIntent.WarningRequired(ConnectionFormWarning.InstanceChange)
+                    )
+                    is ConnectionReplacementResult.HttpWarningRequired -> reduce(
+                        ConnectionFormIntent.WarningRequired(ConnectionFormWarning.Http)
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                reduce(ConnectionFormIntent.ValidationFailed(ConnectionValidationFailureReason.Unreachable))
             }
         }
     }

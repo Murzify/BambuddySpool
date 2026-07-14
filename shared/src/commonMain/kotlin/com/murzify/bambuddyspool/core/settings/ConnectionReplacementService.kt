@@ -13,7 +13,7 @@ class ConnectionReplacementService(
     private val settingsStore: ConnectionSettingsStore,
     private val tokenStore: SecureTokenStore,
     private val validator: ConnectionValidator,
-    private val cacheMaintenance: ConnectionCacheMaintenance,
+    private val replacementTransaction: ConnectionReplacementTransaction,
     private val initialSync: InitialConnectionSync
 ) {
 
@@ -55,14 +55,13 @@ class ConnectionReplacementService(
             null
         }
 
-        tokenStore.replaceToken(token)
-        settingsStore.replace(
+        replacementTransaction.commit(
             activeSettings.forConnectionReplacement(
                 newBaseUrl = newBaseUrl,
                 httpConsentOrigin = httpConsentOrigin
-            )
+            ),
+            token
         )
-        cacheMaintenance.clearDomainSnapshot()
         initialSync.requestInitialSync()
         return ConnectionReplacementResult.Replaced
     }
@@ -121,8 +120,9 @@ enum class ConnectionValidationFailureReason {
     TlsValidationFailed
 }
 
-interface ConnectionCacheMaintenance {
-    suspend fun clearDomainSnapshot()
+/** Durable all-or-nothing boundary for settings, credential, default reset, consent reset, and cache clearing. */
+interface ConnectionReplacementTransaction {
+    suspend fun commit(settings: ConnectionSettings, token: SecretValue)
 }
 
 interface InitialConnectionSync {
