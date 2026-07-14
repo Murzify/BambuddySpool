@@ -8,10 +8,12 @@ object CanonicalNfcPayloadCodec {
 
     private const val SEPARATOR = "://"
     private const val PATH_SEPARATOR = '/'
+    private const val MAX_URI_LENGTH = 256
 
     fun encode(spoolId: SpoolId): String = "$SCHEME://$HOST/${spoolId.value}"
 
     fun parse(uri: String): NfcPayloadParseResult = when {
+        uri.length > MAX_URI_LENGTH -> NfcPayloadParseResult.Malformed(MalformedNfcPayloadReason.PayloadTooLarge)
         uri.isEmpty() || uri.any { it.isWhitespace() } -> NfcPayloadParseResult.Malformed(
             MalformedNfcPayloadReason.BlankOrWhitespace
         )
@@ -115,6 +117,7 @@ enum class UnknownNfcPayloadReason {
 }
 
 enum class MalformedNfcPayloadReason {
+    PayloadTooLarge,
     BlankOrWhitespace,
     MissingSchemeSeparator,
     MissingIdSegment,

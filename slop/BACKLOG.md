@@ -132,11 +132,11 @@ Centralize ID/URI/URL validation, DTO mapping, SlotKey identity, errors, and sna
 Task DOD
 Each invariant has one authoritative implementation; NFC and manual flows share models; dependency direction and behavior-focused tests remain intact.
 
-- [ ] [DATA]-[013] Review Data-Layer Security
+- [x] [DATA]-[013] Review Data-Layer Security
 Task Context
 Review storage classification, SQL constraints, malformed/oversized responses, secret lifetime, URL metadata, fixtures, DB corruption, generation races, numeric overflow, and malicious NFC input.
 Task DOD
-Critical/High issues are fixed with negative tests; token storage is exclusive; allocation bounds are enforced where possible; evidence is recorded in `docs/security/data-review.md`.
+Critical/High issues are fixed with negative tests; token storage is exclusive; allocation bounds are enforced where possible; evidence is recorded in `slop/security/data-review.md`.
 
 - [ ] [DATA]-[014] Polish Data and Infrastructure Code
 Task Context

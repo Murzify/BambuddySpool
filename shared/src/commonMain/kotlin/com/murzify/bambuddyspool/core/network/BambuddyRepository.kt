@@ -198,6 +198,10 @@ private suspend fun <T> HttpResponse.toNetworkResult(
 
 @Suppress("ReturnCount")
 private suspend fun HttpResponse.readBoundedText(limitBytes: Long): BoundedBodyReadResult {
+    val declaredLength = headers[HttpHeaders.ContentLength]?.toLongOrNull()
+    if (declaredLength != null && declaredLength > limitBytes) {
+        return BoundedBodyReadResult.Failure(BambuddyNetworkError.ResponseTooLarge(limitBytes))
+    }
     val packet = try {
         bodyAsChannel().readRemaining(limitBytes + 1)
     } catch (_: NoTransformationFoundException) {

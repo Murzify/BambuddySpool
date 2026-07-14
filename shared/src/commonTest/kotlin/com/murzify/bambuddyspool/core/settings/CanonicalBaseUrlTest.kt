@@ -46,6 +46,26 @@ class CanonicalBaseUrlTest {
     }
 
     @Test
+    fun rejectsOversizedOrUnsafeHostMetadata() {
+        assertEquals(
+            BaseUrlParseFailureReason.TooLong,
+            assertIs<BaseUrlParseResult.Failure>(parseCanonicalBaseUrl("https://" + "a".repeat(2_041))).reason
+        )
+        assertEquals(
+            BaseUrlParseFailureReason.InvalidCharacters,
+            assertIs<BaseUrlParseResult.Failure>(parseCanonicalBaseUrl("https://example.local%2Fevil")).reason
+        )
+        assertEquals(
+            BaseUrlParseFailureReason.InvalidCharacters,
+            assertIs<BaseUrlParseResult.Failure>(parseCanonicalBaseUrl("https://-invalid.example")).reason
+        )
+        assertEquals(
+            BaseUrlParseFailureReason.InvalidCharacters,
+            assertIs<BaseUrlParseResult.Failure>(parseCanonicalBaseUrl("https://[::::]")).reason
+        )
+    }
+
+    @Test
     fun supportsCustomPortsAndIpv6Literals() {
         val result = assertIs<BaseUrlParseResult.Success>(parseCanonicalBaseUrl("http://[::1]:8080/base"))
 

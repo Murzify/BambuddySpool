@@ -83,6 +83,16 @@ class CanonicalNfcPayloadCodecTest {
     }
 
     @Test
+    fun parseRejectsOversizedPayloadBeforeFurtherProcessing() {
+        val result = CanonicalNfcPayloadCodec.parse("bambuddy-spool://spool/" + "1".repeat(234))
+
+        assertEquals(
+            MalformedNfcPayloadReason.PayloadTooLarge,
+            assertIs<NfcPayloadParseResult.Malformed>(result).reason
+        )
+    }
+
+    @Test
     fun parseRejectsInvalidIdForms() {
         mapOf(
             "bambuddy-spool://spool/0" to MalformedNfcPayloadReason.NonPositiveOrOverflowId,

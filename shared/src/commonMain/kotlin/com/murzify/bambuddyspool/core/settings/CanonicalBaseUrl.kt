@@ -50,6 +50,7 @@ sealed interface BaseUrlParseResult {
 }
 
 enum class BaseUrlParseFailureReason {
+    TooLong,
     MissingScheme,
     UnsupportedScheme,
     MissingHost,
@@ -63,6 +64,12 @@ enum class BaseUrlParseFailureReason {
 @Suppress("ReturnCount")
 fun parseCanonicalBaseUrl(input: String): BaseUrlParseResult {
     val trimmed = input.trim()
+    if (trimmed.length > MAX_BASE_URL_LENGTH) return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.TooLong)
+    return parseBoundedCanonicalBaseUrl(trimmed)
+}
+
+@Suppress("ReturnCount")
+private fun parseBoundedCanonicalBaseUrl(trimmed: String): BaseUrlParseResult {
     if (trimmed.any(Char::isWhitespace)) return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.InvalidCharacters)
     if ('?' in trimmed) return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.QueryNotAllowed)
     if ('#' in trimmed) return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.FragmentNotAllowed)
@@ -84,6 +91,7 @@ fun parseCanonicalBaseUrl(input: String): BaseUrlParseResult {
         ?: return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.InvalidPort)
     val host = hostAndPort.host.takeIf { it.isNotBlank() }
         ?: return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.MissingHost)
+    if (!host.isValidUrlHost()) return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.InvalidCharacters)
     val canonicalPath = canonicalizeBasePath(rawPath)
         ?: return BaseUrlParseResult.Failure(BaseUrlParseFailureReason.InvalidCharacters)
 
@@ -126,6 +134,7 @@ private fun parseHostAndPort(authority: String): ParsedHostAndPort? {
 
 @Suppress("ReturnCount")
 private fun canonicalizeBasePath(rawPath: String): String? {
+    if (rawPath.length > MAX_BASE_PATH_LENGTH) return null
     if (rawPath.isEmpty() || rawPath == "/") return ""
     if (!rawPath.startsWith('/')) return null
     return rawPath.trimEnd('/')
@@ -133,5 +142,45 @@ private fun canonicalizeBasePath(rawPath: String): String? {
 
 private fun String.forUrlAuthority(): String = if (':' in this) "[$this]" else this
 
+private fun String.isValidUrlHost(): Boolean = when {
+    length > MAX_HOST_LENGTH -> false
+    ':' in this -> isValidIpv6Literal()
+    else -> split('.').all { label ->
+        label.isNotEmpty() &&
+            label.length <= MAX_HOST_LABEL_LENGTH &&
+            label.first().isAsciiAlphaNumeric() &&
+            label.last().isAsciiAlphaNumeric() &&
+            label.all { it.isAsciiAlphaNumeric() || it == '-' }
+    }
+}
+
+private fun String.isValidIpv6Literal(): Boolean {
+    val compressedGroupCount = windowed(size = 2).count { it == "::" }
+    val explicitGroups = split(':').filter { it.isNotEmpty() }
+    val validExplicitGroups = explicitGroups.all { group ->
+        group.length <= IPV6_GROUP_LENGTH && group.all { character -> character in HEX_DIGITS }
+    }
+    val validGroupCount = if (compressedGroupCount == 1) {
+        explicitGroups.size < IPV6_GROUP_COUNT
+    } else {
+        explicitGroups.size == IPV6_GROUP_COUNT
+    }
+    return '.' !in this &&
+        all { it in IPV6_HOST_CHARACTERS } &&
+        compressedGroupCount <= 1 &&
+        validExplicitGroups &&
+        validGroupCount
+}
+
+private fun Char.isAsciiAlphaNumeric(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'
+
 private const val MIN_PORT = 1
 private const val MAX_PORT = 65535
+private const val MAX_BASE_URL_LENGTH = 2_048
+private const val MAX_BASE_PATH_LENGTH = 1_024
+private const val MAX_HOST_LENGTH = 253
+private const val MAX_HOST_LABEL_LENGTH = 63
+private const val IPV6_HOST_CHARACTERS = "0123456789abcdefABCDEF:."
+private const val HEX_DIGITS = "0123456789abcdefABCDEF"
+private const val IPV6_GROUP_LENGTH = 4
+private const val IPV6_GROUP_COUNT = 8

@@ -1,5 +1,13 @@
 # Agent Documentation Changelog
 
+## 2026-07-14
+
+- Completed `[DATA]-[013]` with a data-layer security review and evidence covering storage classification, SQL
+  constraints, synthetic fixtures, malformed and oversized responses, secret handling, URL metadata, generation
+  races, numeric overflow, and malicious NFC input.
+- Added early oversized `Content-Length` rejection, a fail-closed NFC URI length limit, and bounded strict
+  canonical URL metadata validation with adversarial tests.
+
 ## 2026-07-13
 
 - Completed `[DATA]-[012]` by centralizing raw database slot-coordinate conversion in `SlotKey`, snapshot-generation advancement, and the complete Room snapshot publication write-set. Retained distinct canonical parsers for Bambuddy base URLs and NFC payloads because their grammar and typed failures are intentionally different.
