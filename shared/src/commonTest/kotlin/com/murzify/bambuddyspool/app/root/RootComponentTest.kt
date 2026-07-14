@@ -12,17 +12,36 @@ import kotlin.test.assertNull
 
 class RootComponentTest {
     @Test
-    fun safeDestinationAndDetailRestoreButTransientWorkflowDoesNot() {
+    fun independentDestinationHistoriesSurviveSwitchingAndRecreationWithoutTransientWorkflow() {
         val firstStateKeeper = StateKeeperDispatcher()
         val first = component(firstStateKeeper)
 
         first.accept(RootIntent.OpenDetail(RootDestination.Spools, 42))
+        first.accept(RootIntent.OpenDetail(RootDestination.Spools, 99))
+        first.accept(RootIntent.OpenDetail(RootDestination.Printers, 7))
+        first.accept(RootIntent.Select(RootDestination.Spools))
         first.accept(RootIntent.ShowTransient(RootTransientWorkflow.Processing))
+
+        assertEquals(
+            listOf(DestinationRoute.List, DestinationRoute.Detail(42), DestinationRoute.Detail(99)),
+            first.destinationHistory(RootDestination.Spools)
+        )
+        assertEquals(
+            listOf(DestinationRoute.List, DestinationRoute.Detail(7)),
+            first.destinationHistory(RootDestination.Printers)
+        )
 
         val restored = component(StateKeeperDispatcher(firstStateKeeper.save()))
 
         assertEquals(RootDestination.Spools, restored.state.value.destination)
-        assertEquals(42, restored.state.value.selectedDetailId)
+        assertEquals(
+            listOf(DestinationRoute.List, DestinationRoute.Detail(42), DestinationRoute.Detail(99)),
+            restored.destinationHistory(RootDestination.Spools)
+        )
+        assertEquals(
+            listOf(DestinationRoute.List, DestinationRoute.Detail(7)),
+            restored.destinationHistory(RootDestination.Printers)
+        )
         assertNull(restored.state.value.transientWorkflow)
     }
 
@@ -41,10 +60,16 @@ class RootComponentTest {
     }
 
     private fun component(stateKeeper: StateKeeperDispatcher): RootComponent = RootComponent(
-        componentContext = DefaultComponentContext(LifecycleRegistry(), stateKeeper = stateKeeper),
+        componentContext = DefaultComponentContext(activeLifecycle(), stateKeeper = stateKeeper),
         nfcService = object : NfcService {
             override val isAvailable = true
             override suspend fun read(): NfcObservation = error("Not used by root navigation tests")
         }
     )
+
+    private fun activeLifecycle(): LifecycleRegistry = LifecycleRegistry().apply {
+        onCreate()
+        onStart()
+        onResume()
+    }
 }

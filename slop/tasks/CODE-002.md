@@ -23,8 +23,8 @@ mutation workflows.
 
 - The shared root has Home, Spools, Printers, and Settings destinations. It uses a bottom navigation bar below
   600 dp and a navigation rail at wider widths.
-- Each destination retains an independent safe detail selection. The root StateKeeper persists only the selected
-  destination and those safe child-navigation values.
+- Each destination owns an independent Decompose child stack of safe list/detail routes. Decompose restores those
+  histories through each destination context while the root StateKeeper restores the selected root destination.
 - Home is deliberately minimal: NFC instruction, Bambuddy connection state, and NFC availability state. It supports
   not-configured, online, offline, stale, unavailable, and disabled presentation states without directly calling a
   repository from Compose.
@@ -40,15 +40,15 @@ mutation workflows.
 git diff --check
 ```
 
-Focused tests prove deterministic status reduction and StateKeeper restoration of a selected destination/detail
-while proving that a transient workflow is discarded.
+Focused tests prove deterministic status reduction and restoration of independent Spools and Printers histories
+after destination switching, while proving that a transient workflow is discarded.
 
 No private `.env.local` file was read and no Bambuddy request was made.
 
 ## Definition of Done
 
 - [x] Shared Android/iOS root navigation has the four required destinations and responsive compact/wide navigation.
-- [x] Safe root destination and detail navigation state survives StateKeeper recreation.
+- [x] Each root destination retains and restores its own safe Decompose child-stack history.
 - [x] Credentials, authorizations, NFC sessions, transient workflows, and mutations are excluded from restoration.
 - [x] Home stays minimal and renders connection/NFC offline or unavailable states.
 - [x] Navigation models are common serializable Kotlin with no Android framework types.

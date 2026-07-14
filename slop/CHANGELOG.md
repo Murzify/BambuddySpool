@@ -4,7 +4,7 @@
 
 - Completed `[CODE]-[002]` with a shared Decompose/UDF root for Home, Spools, Printers, and Settings, responsive
   bottom navigation below 600 dp and a navigation rail at wider widths, plus explicit transient root workflow state.
-- Added safe StateKeeper restoration for selected root destination and common detail navigation only. Credentials,
+- Added independent, safely restorable Decompose child histories for every primary destination. Credentials,
   authorization, NFC sessions, transient workflows, and mutation state are intentionally excluded from saved state.
 - Added the minimal resource-backed Home screen with configured/online/offline/stale connection messaging and NFC
   available/unavailable/disabled states, along with deterministic restoration and reducer tests on Android host and

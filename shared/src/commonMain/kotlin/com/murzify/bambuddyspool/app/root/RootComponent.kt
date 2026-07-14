@@ -2,8 +2,9 @@ package com.murzify.bambuddyspool.app.root
 
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.StackNavigation
-import com.arkivanov.decompose.router.stack.bringToFront
 import com.arkivanov.decompose.router.stack.childStack
+import com.arkivanov.decompose.router.stack.pushNew
+import com.arkivanov.decompose.router.stack.pushToFront
 import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.core.application.ComponentScope
 import com.murzify.bambuddyspool.core.application.Reducer
@@ -16,10 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
-
-/** Safe child-stack state; feature-specific screens may extend it without leaking platform values. */
-@Serializable
-data class DestinationStackState(val selectedDetailId: Long? = null)
 
 /** Connection status rendered by Home. Network operations update this through explicit intents. */
 @Serializable
@@ -51,15 +48,10 @@ enum class RootTransientWorkflow {
 /** Immutable state exposed by the shared root component. */
 data class RootState(
     val destination: RootDestination = RootDestination.Home,
-    val stacks: Map<RootDestination, DestinationStackState> = RootDestination.entries.associateWith {
-        DestinationStackState()
-    },
     val connectionState: HomeConnectionState = HomeConnectionState.NotConfigured,
     val nfcState: HomeNfcState = HomeNfcState.Unavailable,
     val transientWorkflow: RootTransientWorkflow? = null
-) {
-    val selectedDetailId: Long? get() = stacks.getValue(destination).selectedDetailId
-}
+)
 
 /** Inputs accepted by the shared root component. */
 sealed interface RootIntent {
@@ -73,23 +65,27 @@ sealed interface RootIntent {
 
 internal sealed interface RootEffect {
     data class Navigate(val destination: RootDestination) : RootEffect
+    data class OpenDestinationDetail(val destination: RootDestination, val id: Long) : RootEffect
 }
 
 internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
     override fun reduce(state: RootState, intent: RootIntent): Reduction<RootState, RootEffect> = when (intent) {
-        is RootIntent.Select -> Reduction(
-            state.copy(destination = intent.destination),
-            listOf(RootEffect.Navigate(intent.destination))
-        )
+        is RootIntent.Select -> if (state.destination == intent.destination) {
+            Reduction(state)
+        } else {
+            Reduction(state.copy(destination = intent.destination), listOf(RootEffect.Navigate(intent.destination)))
+        }
 
         is RootIntent.OpenDetail -> {
             require(intent.id > 0) { "Detail identifiers must be positive." }
-            Reduction(
-                state.copy(
-                    destination = intent.destination,
-                    stacks = state.stacks + (intent.destination to DestinationStackState(intent.id))
-                ),
+            val navigationEffects = if (state.destination == intent.destination) {
+                emptyList()
+            } else {
                 listOf(RootEffect.Navigate(intent.destination))
+            }
+            Reduction(
+                state.copy(destination = intent.destination),
+                navigationEffects + RootEffect.OpenDestinationDetail(intent.destination, intent.id)
             )
         }
 
@@ -105,14 +101,46 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
 @Serializable
 private enum class RootConfig { Home, Spools, Printers, Settings }
 
-/** Persisted state deliberately contains only navigation and safe feature-detail selections. */
+/** Persisted state deliberately contains only the selected primary destination. */
 @Serializable
-private data class RestoredRootState(
-    val destination: RootDestination,
-    val stacks: Map<RootDestination, DestinationStackState>
-)
+private data class RestoredRootState(val destination: RootDestination)
 
-private data class RootChild(val destination: RootDestination)
+/** A safe route in one primary destination's own Decompose child stack. */
+@Serializable
+sealed interface DestinationRoute {
+    @Serializable
+    data object List : DestinationRoute
+
+    @Serializable
+    data class Detail(val id: Long) : DestinationRoute
+}
+
+private data class DestinationChild(val route: DestinationRoute)
+
+/**
+ * Owns one primary destination's independent safe navigation history.
+ *
+ * Decompose saves this stack through the destination child context. Credentials, active NFC sessions and operation
+ * authorizations are intentionally absent from [DestinationRoute], so restoration cannot replay an operation.
+ */
+internal class DestinationStackComponent(componentContext: ComponentContext) : ComponentContext by componentContext {
+    private val navigation = StackNavigation<DestinationRoute>()
+    private val stack = childStack(
+        source = navigation,
+        serializer = DestinationRoute.serializer(),
+        initialConfiguration = DestinationRoute.List,
+        handleBackButton = true
+    ) { route, _ -> DestinationChild(route) }
+
+    fun openDetail(id: Long) {
+        require(id > 0) { "Detail identifiers must be positive." }
+        navigation.pushNew(DestinationRoute.Detail(id))
+    }
+
+    fun history(): List<DestinationRoute> = stack.value.items.map { it.configuration }
+}
+
+private data class RootChild(val component: DestinationStackComponent)
 
 /** Shared Decompose root and UDF boundary rendered by both platform shells. */
 @Inject
@@ -121,11 +149,11 @@ class RootComponent(componentContext: ComponentContext, nfcService: NfcService) 
     ComponentContext by componentContext,
     UdfComponent<RootState, RootIntent> {
     private val navigation = StackNavigation<RootConfig>()
+    private val destinationComponents = mutableMapOf<RootDestination, DestinationStackComponent>()
     private val restored = stateKeeper.consume("root-navigation", RestoredRootState.serializer())
     private val mutableState = MutableStateFlow(
         RootState(
             destination = restored?.destination ?: RootDestination.Home,
-            stacks = restored?.stacks ?: RootDestination.entries.associateWith { DestinationStackState() },
             nfcState = if (nfcService.isAvailable) HomeNfcState.Available else HomeNfcState.Unavailable
         )
     )
@@ -136,12 +164,16 @@ class RootComponent(componentContext: ComponentContext, nfcService: NfcService) 
         serializer = RootConfig.serializer(),
         initialConfiguration = mutableState.value.destination.toConfig(),
         handleBackButton = true
-    ) { config, _ -> RootChild(config.toDestination()) }
+    ) { config, childContext ->
+        DestinationStackComponent(childContext).also { component ->
+            destinationComponents[config.toDestination()] = component
+        }.let(::RootChild)
+    }
 
     init {
         stateKeeper.register("root-navigation", RestoredRootState.serializer()) {
             mutableState.value.let { current ->
-                RestoredRootState(destination = current.destination, stacks = current.stacks)
+                RestoredRootState(destination = current.destination)
             }
         }
     }
@@ -153,8 +185,13 @@ class RootComponent(componentContext: ComponentContext, nfcService: NfcService) 
     }
 
     private fun handle(effect: RootEffect) = when (effect) {
-        is RootEffect.Navigate -> navigation.bringToFront(effect.destination.toConfig())
+        is RootEffect.Navigate -> navigation.pushToFront(effect.destination.toConfig())
+        is RootEffect.OpenDestinationDetail -> destinationComponents.getValue(effect.destination).openDetail(effect.id)
     }
+
+    /** Exposed for deterministic navigation tests and future feature hosts, never for persisted operation state. */
+    internal fun destinationHistory(destination: RootDestination): List<DestinationRoute> =
+        destinationComponents.getValue(destination).history()
 }
 
 private fun RootDestination.toConfig(): RootConfig = RootConfig.valueOf(name)
