@@ -176,7 +176,7 @@ Implement the complete shared state machine. Refresh relevant status/assignments
 Task DOD
 Decisions are pure and effects isolated; pre-POST cancellation and post-POST application scope are correct; stale/offline/unsupported states never POST; every branch is typed and deterministic.
 
-- [ ] [CODE]-[006] Implement Combined Confirmation and Resolution UI
+- [x] [CODE]-[006] Implement Combined Confirmation and Resolution UI
 Task Context
 Use one surface for printer, slot, move warning, all current locations, target replacement, and final effect. A default only preselects when several printers exist. Target replacement alone adds no confirmation. Fresh exact assignment returns AlreadyAssigned without POST.
 Task DOD

@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[006]` with one shared, transient combined-assignment confirmation surface. It presents the
+  spool, every known current location, target printer and slot, target replacement, and final assign or move-and-
+  assign effect together; replacement alone is secondary information and does not create another confirmation.
+- Kept the confirmation state out of restoration and operation authorization. Its stable shared focus order exposes
+  the title, spool/current locations, target printer, target slot, warning, primary action, and cancel action in
+  that order. Deterministic tests cover move conflicts, target replacement, an unassigned target, focus order, and
+  the existing assignment preflight's no-POST `AlreadyAssigned` result.
 - Completed `[CODE]-[005]` with a common, fail-closed assignment preflight and initial application-scoped POST
   boundary shared by manual and NFC entry. It refreshes spool, printer, status, and assignments, rejects stale,
   offline, unsupported, changed-slot, inconsistent, or unconfirmed context before POST, and never persists/replays a

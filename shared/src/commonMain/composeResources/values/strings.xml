@@ -74,4 +74,15 @@
     <string name="workflow_success">Workflow completed.</string>
     <string name="workflow_error">Workflow failed.</string>
     <string name="workflow_tag_mutation">Tag operation in progress.</string>
+    <string name="assignment_title">Confirm assignment</string>
+    <string name="assignment_spool">Spool: %1$s (%2$d)</string>
+    <string name="assignment_current_locations">Current spool location</string>
+    <string name="assignment_target_printer">Target printer: %1$s</string>
+    <string name="assignment_target_slot">Target external slot: %1$s</string>
+    <string name="assignment_replace_target">This will replace spool %1$d currently assigned to %2$s, %3$s.</string>
+    <string name="assignment_move_warning">This will move the spool from the location shown above.</string>
+    <string name="assignment_effect_assign">Effect: assign spool</string>
+    <string name="assignment_effect_move_and_assign">Effect: move and assign spool</string>
+    <string name="assignment_confirm">Assign spool</string>
+    <string name="assignment_cancel">Cancel</string>
 </resources>

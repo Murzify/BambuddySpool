@@ -26,6 +26,7 @@ import com.murzify.bambuddyspool.app.root.HomeNfcState
 import com.murzify.bambuddyspool.app.root.RootComponent
 import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.app.root.RootState
+import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmationDialog
 import com.murzify.bambuddyspool.feature.printers.PrintersScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
 import com.murzify.bambuddyspool.shared.resources.Res
@@ -104,6 +105,13 @@ private fun RootContent(state: RootState, root: RootComponent, modifier: Modifie
             RootDestination.Settings -> Text(stringResource(Res.string.placeholder_settings))
         }
         state.transientWorkflow?.let { Text(stringResource(it.label())) }
+        state.assignmentConfirmation?.let { confirmation ->
+            CombinedAssignmentConfirmationDialog(
+                confirmation = confirmation,
+                onConfirm = { root.accept(RootIntent.ConfirmAssignment) },
+                onCancel = { root.accept(RootIntent.CancelAssignmentConfirmation) }
+            )
+        }
     }
 }
 

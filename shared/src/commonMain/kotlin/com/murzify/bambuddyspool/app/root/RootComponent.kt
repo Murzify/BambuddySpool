@@ -10,6 +10,7 @@ import com.murzify.bambuddyspool.core.application.ComponentScope
 import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
+import com.murzify.bambuddyspool.core.assignment.AssignmentContext
 import com.murzify.bambuddyspool.core.domain.AssignmentSource
 import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
@@ -17,6 +18,8 @@ import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
+import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmation
+import com.murzify.bambuddyspool.feature.assignment.toCombinedConfirmation
 import com.murzify.bambuddyspool.feature.printers.PrintersComponent
 import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
 import dev.zacsweers.metro.Inject
@@ -60,7 +63,8 @@ data class RootState(
     val nfcState: HomeNfcState = HomeNfcState.Unavailable,
     val transientWorkflow: RootTransientWorkflow? = null,
     val pendingManualSpoolId: SpoolId? = null,
-    val assignmentIntent: AssignmentIntent? = null
+    val assignmentIntent: AssignmentIntent? = null,
+    val assignmentConfirmation: CombinedAssignmentConfirmation? = null
 )
 
 /** Inputs accepted by the shared root component. */
@@ -77,6 +81,11 @@ sealed interface RootIntent {
 
     /** Shared hand-off used by manual and future NFC resolution; it must stay transient. */
     data class StartAssignment(val intent: AssignmentIntent) : RootIntent
+
+    /** Fresh server context only; this transient dialog is never restorable or an authorization by itself. */
+    data class ShowAssignmentConfirmation(val context: AssignmentContext) : RootIntent
+    data object ConfirmAssignment : RootIntent
+    data object CancelAssignmentConfirmation : RootIntent
     data class StartTagLink(val spoolId: Long?) : RootIntent
 
     data class ShowTransient(val workflow: RootTransientWorkflow) : RootIntent
@@ -89,6 +98,7 @@ internal sealed interface RootEffect {
 }
 
 internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
+    @Suppress("CyclomaticComplexMethod")
     override fun reduce(state: RootState, intent: RootIntent): Reduction<RootState, RootEffect> = when (intent) {
         is RootIntent.Select -> if (state.destination == intent.destination) {
             Reduction(state)
@@ -120,7 +130,8 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                     destination = RootDestination.Printers,
                     pendingManualSpoolId = requireNotNull(SpoolId.from(intent.spoolId)),
                     transientWorkflow = null,
-                    assignmentIntent = null
+                    assignmentIntent = null,
+                    assignmentConfirmation = null
                 ),
                 listOf(RootEffect.Navigate(RootDestination.Printers))
             )
@@ -135,7 +146,8 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                     slot = intent.slot,
                     source = AssignmentSource.Manual,
                     expectedSnapshotGeneration = intent.expectedSnapshotGeneration
-                )
+                ),
+                assignmentConfirmation = null
             )
         )
 
@@ -143,14 +155,32 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 pendingManualSpoolId = null,
                 transientWorkflow = RootTransientWorkflow.Processing,
-                assignmentIntent = intent.intent
+                assignmentIntent = intent.intent,
+                assignmentConfirmation = null
             )
+        )
+
+        is RootIntent.ShowAssignmentConfirmation -> Reduction(
+            state.copy(
+                transientWorkflow = RootTransientWorkflow.Confirmation,
+                assignmentConfirmation = intent.context.toCombinedConfirmation()
+            )
+        )
+
+        RootIntent.ConfirmAssignment -> Reduction(
+            state.copy(transientWorkflow = RootTransientWorkflow.Processing, assignmentConfirmation = null)
+        )
+
+        RootIntent.CancelAssignmentConfirmation -> Reduction(
+            state.copy(transientWorkflow = null, assignmentIntent = null, assignmentConfirmation = null)
         )
 
         is RootIntent.StartTagLink -> Reduction(state.copy(transientWorkflow = RootTransientWorkflow.TagMutation))
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
-        RootIntent.DismissTransient -> Reduction(state.copy(transientWorkflow = null, assignmentIntent = null))
+        RootIntent.DismissTransient -> Reduction(
+            state.copy(transientWorkflow = null, assignmentIntent = null, assignmentConfirmation = null)
+        )
     }
 }
 
