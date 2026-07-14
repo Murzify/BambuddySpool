@@ -168,6 +168,91 @@ class ConnectionReplacementServiceTest {
         assertEquals(0, cache.clearCount)
     }
 
+    @Test
+    fun testConnectionNeverMutatesTheActiveConnection() = runBlocking {
+        val original = url("https://old.example.local/api")
+        val oldToken = secret("old-token")
+        val settings = FakeSettingsStore(
+            ConnectionSettings(original, null, null, null)
+        )
+        val tokenStore = FakeTokenStore(oldToken)
+        val cache = FakeCacheMaintenance()
+        val service = service(settings = settings, tokenStore = tokenStore, cache = cache)
+
+        assertEquals(
+            ConnectionTestResult.Valid,
+            service.testConnection("https://new.example.local/api", secret("new-token"))
+        )
+        assertEquals(original, settings.current.baseUrl)
+        assertEquals(oldToken, tokenStore.currentToken)
+        assertEquals(0, cache.clearCount)
+    }
+
+    @Test
+    fun validationOccursBeforeTheInstanceChangeWarning() = runBlocking {
+        val settings = FakeSettingsStore(ConnectionSettings(url("https://old.example.local"), null, null, null))
+        val validator = FakeValidator(
+            connectionResult = failure(ConnectionValidationFailureReason.AuthenticationRejected)
+        )
+        val service = service(settings = settings, validator = validator)
+
+        val result = service.replaceConnection(
+            rawBaseUrl = "https://new.example.local",
+            token = secret("bad-token"),
+            acknowledgements = ConnectionReplacementAcknowledgements.None
+        )
+
+        assertEquals(
+            ConnectionReplacementResult.ValidationFailed(ConnectionValidationFailureReason.AuthenticationRejected),
+            result
+        )
+        assertEquals(1, validator.connectionValidationCount)
+    }
+
+    @Test
+    fun confirmedReplacementClearsTheSnapshotAndRequestsInitialSync() = runBlocking {
+        val settings = FakeSettingsStore(ConnectionSettings(url("https://old.example.local"), null, null, null))
+        val cache = FakeCacheMaintenance()
+        val sync = FakeInitialSync()
+        val service = service(settings = settings, cache = cache, sync = sync)
+
+        assertEquals(
+            ConnectionReplacementResult.Replaced,
+            service.replaceConnection(
+                rawBaseUrl = "https://new.example.local",
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements(
+                    acceptedInstanceChangeWarning = true,
+                    acceptedHttpWarning = false
+                )
+            )
+        )
+        assertEquals(1, cache.clearCount)
+        assertEquals(1, sync.requestCount)
+    }
+
+    @Test
+    fun savingTheSameUrlReplacesOnlyTheValidatedToken() = runBlocking {
+        val activeUrl = url("https://bambuddy.example/api")
+        val settings = FakeSettingsStore(ConnectionSettings(activeUrl, null, null, null))
+        val tokenStore = FakeTokenStore(secret("old-token"))
+        val cache = FakeCacheMaintenance()
+        val sync = FakeInitialSync()
+        val service = service(settings = settings, tokenStore = tokenStore, cache = cache, sync = sync)
+
+        assertEquals(
+            ConnectionReplacementResult.Replaced,
+            service.replaceConnection(
+                rawBaseUrl = activeUrl.canonical,
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements.None
+            )
+        )
+        assertEquals(activeUrl, settings.current.baseUrl)
+        assertEquals(0, cache.clearCount)
+        assertEquals(0, sync.requestCount)
+    }
+
     private fun service(
         settings: FakeSettingsStore,
         tokenStore: FakeTokenStore = FakeTokenStore(),
@@ -219,8 +304,11 @@ private class FakeValidator(
     private val connectionResult: ConnectionValidationResult = ConnectionValidationResult.Valid,
     private val tokenResult: ConnectionValidationResult = ConnectionValidationResult.Valid
 ) : ConnectionValidator {
+    var connectionValidationCount: Int = 0
+        private set
+
     override suspend fun validateConnection(baseUrl: CanonicalBaseUrl, token: SecretValue): ConnectionValidationResult =
-        connectionResult
+        connectionResult.also { connectionValidationCount++ }
 
     override suspend fun validateToken(
         activeBaseUrl: CanonicalBaseUrl,
@@ -238,5 +326,10 @@ private class FakeCacheMaintenance : ConnectionCacheMaintenance {
 }
 
 private class FakeInitialSync : InitialConnectionSync {
-    override suspend fun requestInitialSync() = Unit
+    var requestCount: Int = 0
+        private set
+
+    override suspend fun requestInitialSync() {
+        requestCount++
+    }
 }

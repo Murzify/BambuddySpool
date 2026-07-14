@@ -29,6 +29,15 @@ class ConnectionReplacementService(
         }
 
         val activeSettings = settingsStore.read()
+        if (activeSettings.baseUrl == newBaseUrl) {
+            return replaceToken(token).asConnectionReplacementResult()
+        }
+
+        val validation = validator.validateConnection(newBaseUrl, token)
+        if (validation is ConnectionValidationResult.Failure) {
+            return ConnectionReplacementResult.ValidationFailed(validation.reason)
+        }
+
         if (activeSettings.baseUrl != null &&
             activeSettings.baseUrl != newBaseUrl &&
             !acknowledgements.acceptedInstanceChangeWarning
@@ -46,11 +55,6 @@ class ConnectionReplacementService(
             null
         }
 
-        val validation = validator.validateConnection(newBaseUrl, token)
-        if (validation is ConnectionValidationResult.Failure) {
-            return ConnectionReplacementResult.ValidationFailed(validation.reason)
-        }
-
         tokenStore.replaceToken(token)
         settingsStore.replace(
             activeSettings.forConnectionReplacement(
@@ -61,6 +65,18 @@ class ConnectionReplacementService(
         cacheMaintenance.clearDomainSnapshot()
         initialSync.requestInitialSync()
         return ConnectionReplacementResult.Replaced
+    }
+
+    /** Validates only URL syntax, reachability, and authentication without changing any active connection state. */
+    suspend fun testConnection(rawBaseUrl: String, token: SecretValue): ConnectionTestResult {
+        val baseUrl = when (val parsed = parseCanonicalBaseUrl(rawBaseUrl)) {
+            is BaseUrlParseResult.Success -> parsed.value
+            is BaseUrlParseResult.Failure -> return ConnectionTestResult.InvalidBaseUrl(parsed.reason)
+        }
+        return when (val validation = validator.validateConnection(baseUrl, token)) {
+            ConnectionValidationResult.Valid -> ConnectionTestResult.Valid
+            is ConnectionValidationResult.Failure -> ConnectionTestResult.ValidationFailed(validation.reason)
+        }
     }
 
     @Suppress("ReturnCount")
@@ -127,6 +143,12 @@ sealed interface TokenReplacementResult {
     data class ValidationFailed(val reason: ConnectionValidationFailureReason) : TokenReplacementResult
 }
 
+sealed interface ConnectionTestResult {
+    data object Valid : ConnectionTestResult
+    data class InvalidBaseUrl(val reason: BaseUrlParseFailureReason) : ConnectionTestResult
+    data class ValidationFailed(val reason: ConnectionValidationFailureReason) : ConnectionTestResult
+}
+
 private fun ConnectionSettings.forConnectionReplacement(
     newBaseUrl: CanonicalBaseUrl,
     httpConsentOrigin: UrlOrigin?
@@ -146,4 +168,10 @@ private fun httpConsentForReplacement(
 ): UrlOrigin? {
     if (activeSettings.httpConsentOrigin == newBaseUrl.origin) return newBaseUrl.origin
     return newBaseUrl.origin.takeIf { acknowledgement }
+}
+
+private fun TokenReplacementResult.asConnectionReplacementResult(): ConnectionReplacementResult = when (this) {
+    TokenReplacementResult.Replaced -> ConnectionReplacementResult.Replaced
+    TokenReplacementResult.NoActiveConnection -> error("Active settings disappeared during token replacement.")
+    is TokenReplacementResult.ValidationFailed -> ConnectionReplacementResult.ValidationFailed(reason)
 }

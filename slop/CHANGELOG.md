@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[001]` with one resource-backed shared URL/token/Test/Save form for Setup and Settings. The
+  token is kept only in unsaved Compose memory and is converted directly to the non-printing secret boundary;
+  reducer, navigation, and saved state contain only safe form metadata.
+- Added validation-only connection testing, reducer coverage for required inputs and sequential safety warnings, and
+  critical instance-change/HTTP confirmations. Connection replacement now validates reachability and authentication
+  before showing the instance-change warning, then retains the existing atomic cache/default/security reset and
+  initial-sync path.
 - Completed `[DATA]-[014]` by documenting the public network, synchronization, client-lifecycle, and
   connection-replacement contracts; narrowing the Room snapshot adapter to internal visibility; and preserving
   coroutine cancellation through the Ktor request boundary with deterministic MockEngine coverage.

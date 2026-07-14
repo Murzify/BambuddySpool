@@ -13,6 +13,10 @@ plugins {
 val packageName = gradle.extensions.extraProperties["BAMBUDDY_PACKAGE_NAME"] as String
 val jvmTargetVersion = libs.versions.jvm.target.get()
 
+compose.resources {
+    packageOfResClass = "$packageName.shared.resources"
+}
+
 detekt {
     source.setFrom(files("src"))
 }
@@ -59,6 +63,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(compose.components.resources)
             implementation(libs.compose.ui)
             implementation(libs.androidx.datastore.preferences)
             api(libs.decompose)

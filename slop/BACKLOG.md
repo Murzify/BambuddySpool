@@ -146,7 +146,7 @@ Common, Room, network, formatting, static, architecture, and iOS checks pass; pu
 
 ## Stage 3. Product Implementation
 
-- [ ] [CODE]-[001] Implement Setup and Atomic Connection Management
+- [x] [CODE]-[001] Implement Setup and Atomic Connection Management
 Task Context
 Build the shared one-page URL/token/Test/Save setup. Validate reachability and auth only. Support the permitted URL forms, critical instance-change warning, atomic connection replacement, cache/default reset, and initial sync. Validate token replacement before saving it.
 Task DOD

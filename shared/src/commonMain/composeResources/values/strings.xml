@@ -1,0 +1,25 @@
+<resources>
+    <string name="connection_setup_title">Connect Bambuddy</string>
+    <string name="connection_settings_title">Connection</string>
+    <string name="connection_base_url">Bambuddy base URL</string>
+    <string name="connection_api_token">API token</string>
+    <string name="connection_test">Test connection</string>
+    <string name="connection_save">Save</string>
+    <string name="connection_testing">Testing connection</string>
+    <string name="connection_saving">Saving connection</string>
+    <string name="connection_test_succeeded">Connection and authentication succeeded.</string>
+    <string name="connection_save_succeeded">Connection saved. Initial sync has started.</string>
+    <string name="connection_required_fields">Enter a base URL and API token.</string>
+    <string name="connection_invalid_url">Enter a supported HTTP or HTTPS URL without credentials, a query, or a fragment.</string>
+    <string name="connection_unreachable">Bambuddy could not be reached.</string>
+    <string name="connection_auth_rejected">Bambuddy rejected the API token.</string>
+    <string name="connection_incompatible">Bambuddy returned an incompatible authentication response.</string>
+    <string name="connection_tls_failed">Certificate verification failed.</string>
+    <string name="connection_instance_warning_title">Change Bambuddy instance?</string>
+    <string name="connection_instance_warning">Existing NFC tags contain only spool numbers. Those numbers may refer to different spools on the new Bambuddy instance. Cached data and your default printer will be cleared.</string>
+    <string name="connection_http_warning_title">Use an unencrypted connection?</string>
+    <string name="connection_http_warning">Your API token and Bambuddy data will be sent without transport encryption.</string>
+    <string name="connection_confirm">Continue</string>
+    <string name="connection_cancel">Cancel</string>
+    <string name="connection_token_status_saved">An API token is saved. Enter a replacement token to change it.</string>
+</resources>
