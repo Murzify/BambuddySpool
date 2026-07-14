@@ -9,6 +9,7 @@ import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
 import com.murzify.bambuddyspool.core.nfc.CanonicalNfcPayloadCodec
 import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
+import kotlinx.coroutines.sync.Mutex
 
 /** A platform-neutral read observation retained only for the live tag-mutation workflow. */
 data class TagMutationRead(val fingerprint: String, val classification: NfcReadClassification) {
@@ -49,6 +50,7 @@ enum class TagMutationFailure {
     DifferentTagDetected,
     FreshValidationFailed,
     SpoolDeleted,
+    OperationInProgress,
     PhysicalWriteUnverified
 }
 
@@ -133,8 +135,11 @@ sealed interface TagMutationValidation {
  */
 class TagMutationWorkflowController(
     private val validator: FreshTagMutationValidator,
-    private val writer: TagMutationWriter
+    private val writer: TagMutationWriter,
+    /** One physical tag mutation is permitted per process-local controller at a time. */
+    private val mutationMutex: Mutex = Mutex()
 ) {
+    @Suppress("ReturnCount") // Early terminal states make authorization denial explicit and avoid writer fall-through.
     suspend fun confirm(state: TagMutationState): TagMutationState {
         val operationAndRead = when (state) {
             is TagMutationState.LinkReady -> operation(state.spoolId) to state.read
@@ -144,14 +149,22 @@ class TagMutationWorkflowController(
             else -> return state
         }
         val (operation, read) = operationAndRead
-        return when (validator.validate(operation)) {
-            is TagMutationValidation.Valid -> TagMutationWorkflow.retryAfter(
-                outcome = writer.mutate(read.fingerprint, operation),
-                operation = operation,
-                fingerprint = read.fingerprint
-            )
-            TagMutationValidation.OfflineOrInvalid -> TagMutationState.Failed(TagMutationFailure.FreshValidationFailed)
-            TagMutationValidation.Deleted -> TagMutationState.Failed(TagMutationFailure.SpoolDeleted)
+        if (!mutationMutex.tryLock()) {
+            return TagMutationState.Failed(TagMutationFailure.OperationInProgress)
+        }
+        return try {
+            when (validator.validate(operation)) {
+                is TagMutationValidation.Valid -> TagMutationWorkflow.retryAfter(
+                    outcome = writer.mutate(read.fingerprint, operation),
+                    operation = operation,
+                    fingerprint = read.fingerprint
+                )
+                TagMutationValidation.OfflineOrInvalid ->
+                    TagMutationState.Failed(TagMutationFailure.FreshValidationFailed)
+                TagMutationValidation.Deleted -> TagMutationState.Failed(TagMutationFailure.SpoolDeleted)
+            }
+        } finally {
+            mutationMutex.unlock()
         }
     }
 

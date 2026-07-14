@@ -21,6 +21,10 @@ import com.murzify.bambuddyspool.core.nfc.NfcReadClassifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 class TagMutationWorkflowTest {
@@ -112,6 +116,26 @@ class TagMutationWorkflowTest {
         assertEquals(1, writer.calls)
     }
 
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun concurrentConfirmationCannotWriteTheSameAuthorizedTagTwice() = runTest {
+        val writer = BlockingWriter()
+        val controller = TagMutationWorkflowController(FreshTagMutationValidator(FakeRepository()), writer)
+        val confirmation = TagMutationWorkflow.selectSpool(read(NfcReadClassification.Empty), spoolId(7))
+
+        val first = async { controller.confirm(confirmation) }
+        writer.started.await()
+        val second = async { controller.confirm(confirmation) }
+        runCurrent()
+
+        assertEquals(TagMutationFailure.OperationInProgress, assertIs<TagMutationState.Failed>(second.await()).reason)
+        assertEquals(1, writer.calls)
+
+        writer.allowCompletion.complete(Unit)
+        assertIs<TagMutationState.Succeeded>(first.await())
+        assertEquals(1, writer.calls)
+    }
+
     private fun read(classification: NfcReadClassification, fingerprint: String = "tag-1") =
         TagMutationRead(fingerprint, classification)
 
@@ -125,6 +149,19 @@ private class FakeWriter(private val outcome: TagMutationOutcome) : TagMutationW
     override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
         calls++
         return outcome
+    }
+}
+
+private class BlockingWriter : TagMutationWriter {
+    val started = CompletableDeferred<Unit>()
+    val allowCompletion = CompletableDeferred<Unit>()
+    var calls = 0
+
+    override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
+        calls++
+        started.complete(Unit)
+        allowCompletion.await()
+        return TagMutationSuccess((operation as TagMutationOperation.Link).spoolId)
     }
 }
 

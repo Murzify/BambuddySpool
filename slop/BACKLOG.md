@@ -242,7 +242,7 @@ Unify NFC/manual assignment, setup/settings connection, result/error surfaces, r
 Task DOD
 Entry source is the only NFC/manual difference; business rules have one shared implementation; common components retain clear ownership; regressions pass.
 
-- [ ] [CODE]-[017] Review Feature Security
+- [x] [CODE]-[017] Review Feature Security
 Task Context
 Review authorization lifetime, wrong-tag writes, duplicate POSTs, offline mutation, move confirmation, stale topology, recreation, clipboard/details, NFC injection, and intent spoofing against fail-closed requirements.
 Task DOD

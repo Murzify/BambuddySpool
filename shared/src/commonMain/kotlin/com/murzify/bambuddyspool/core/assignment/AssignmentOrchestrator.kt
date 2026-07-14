@@ -33,6 +33,7 @@ import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * Common assignment boundary for both NFC and manual entry. It deliberately owns no saved state, queue, or replay
@@ -87,6 +88,9 @@ sealed interface AssignmentWorkflowFailure : DomainFailure {
     data object TargetPrinterOffline : AssignmentWorkflowFailure
     data object SlotChanged : AssignmentWorkflowFailure
     data object InconsistentAssignments : AssignmentWorkflowFailure
+
+    /** Another application-scoped assignment already owns the sole mutation boundary. */
+    data object MutationInProgress : AssignmentWorkflowFailure
     data class ConfirmationRequired(val reason: AssignmentConfirmationReason) : AssignmentWorkflowFailure
 }
 
@@ -107,7 +111,9 @@ class DefaultAssignmentOrchestrator(
     private val wait: suspend (Long) -> Unit = { delay(it) },
     private val secondaryFeedback: AssignmentSecondaryFeedback? = null,
     /** Process-local engineering hook; it is not a telemetry or diagnostic sink. */
-    private val timing: AssignmentTiming = NoOpAssignmentTiming
+    private val timing: AssignmentTiming = NoOpAssignmentTiming,
+    /** Process-local global mutation ownership; it is intentionally neither saved nor replayed. */
+    private val mutationMutex: Mutex = Mutex()
 ) : AssignmentOrchestrator {
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     override suspend fun preflight(intent: AssignmentIntent): AssignmentPreflight {
@@ -204,9 +210,19 @@ class DefaultAssignmentOrchestrator(
             is AssignmentPreflight.Ready -> {
                 timing.mark(AssignmentTimingStage.ContextRefreshed)
                 val command = preflight.command
-                // The application-scoped operation must finish ambiguity resolution after its first POST is scheduled.
-                applicationScope.async { postThenVerify(command) }.await().also {
-                    timing.mark(AssignmentTimingStage.Published)
+                if (!mutationMutex.tryLock()) {
+                    AssignmentResult.Failure(AssignmentWorkflowFailure.MutationInProgress)
+                } else {
+                    // The application-scoped operation must finish ambiguity resolution after its first POST is scheduled.
+                    applicationScope.async {
+                        try {
+                            postThenVerify(command)
+                        } finally {
+                            mutationMutex.unlock()
+                        }
+                    }.await().also {
+                        timing.mark(AssignmentTimingStage.Published)
+                    }
                 }
             }
         }

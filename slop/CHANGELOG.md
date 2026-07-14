@@ -2,6 +2,13 @@
 
 ## 2026-07-15
 
+- Completed `[CODE]-[017]` with a feature security review and evidence in `slop/security/feature-review.md`.
+  Fixed concurrent assignment POST and tag-mutation write ownership with process-local mutation guards, retaining
+  their application-scoped/no-replay behavior.
+- Hardened Android NFC entry against Intent spoofing: a routed URI now needs non-empty framework Tag evidence and
+  exactly one independently decoded framework NDEF record equal to the canonical Intent URI. Added deterministic
+  race and adversarial coverage; no private configuration or live instance was used.
+
 - Completed `[CODE]-[016]` by making `AssignmentIntent` the single common manual/NFC orchestration boundary.
   Manual selection now delegates through the same root transition; NFC retains only its live, non-restorable scan
   session until the POST boundary. Freshness, confirmation, retry, POST, and verification remain shared.

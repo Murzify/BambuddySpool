@@ -302,6 +302,36 @@ class AssignmentOrchestratorTest {
         assertEquals(1, repository.posted.size)
     }
 
+    @Test
+    fun concurrentAssignmentCannotStartADuplicatePostWhileFirstMutationOwnsBoundary() = runTest {
+        val postStarted = CompletableDeferred<Unit>()
+        val allowPostCompletion = CompletableDeferred<Unit>()
+        val repository = FakeAssignmentRepository(verificationResults = listOf(success(listOf(assignment()))))
+        val orchestrator = orchestrator(
+            repository = repository,
+            poster = InitialAssignmentPoster { command ->
+                postStarted.complete(Unit)
+                allowPostCompletion.await()
+                repository.createAssignment(command)
+            }
+        )
+
+        val first = async { orchestrator.execute(intent()) }
+        postStarted.await()
+        val second = async { orchestrator.execute(intent()) }
+        runCurrent()
+
+        assertEquals(
+            AssignmentWorkflowFailure.MutationInProgress,
+            assertIs<AssignmentResult.Failure>(second.await()).reason
+        )
+        assertEquals(0, repository.posted.size)
+
+        allowPostCompletion.complete(Unit)
+        assertIs<AssignmentResult.Success>(first.await())
+        assertEquals(1, repository.posted.size)
+    }
+
     private fun TestScope.orchestrator(
         repository: FakeAssignmentRepository,
         freshnessGate: AssignmentFreshnessGate = AssignmentFreshnessGate { AssignmentFreshness.Fresh },
