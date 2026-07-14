@@ -27,9 +27,16 @@ import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
 import io.ktor.http.path
 import io.ktor.utils.io.readRemaining
+import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 import kotlinx.io.readByteArray
 
+/**
+ * Minimal Bambuddy API boundary used by synchronization and future assignment workflows.
+ *
+ * Implementations return typed protocol, transport, and security failures rather than raw exceptions. They must
+ * preserve coroutine cancellation so callers retain control of workflow lifetime.
+ */
 interface BambuddyRepository {
     suspend fun validateAuth(): BambuddyNetworkResult<Unit>
     suspend fun getPrinters(): BambuddyNetworkResult<List<Printer>>
@@ -40,6 +47,12 @@ interface BambuddyRepository {
     suspend fun createAssignment(command: AssignmentCommand): BambuddyNetworkResult<Assignment>
 }
 
+/**
+ * Ktor implementation of [BambuddyRepository] for one validated Bambuddy origin.
+ *
+ * The caller owns the [client] lifecycle. Requests do not follow redirects, add credentials only at the trusted
+ * request boundary, and enforce endpoint-specific decompressed response limits before mapping a response.
+ */
 class KtorBambuddyRepository(
     private val client: HttpClient,
     private val baseUrl: CanonicalBaseUrl,
@@ -144,6 +157,7 @@ class KtorBambuddyRepository(
                 }
             }
         } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
             return BambuddyNetworkResult.Failure(classifyThrowable(throwable))
         }
 

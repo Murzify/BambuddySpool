@@ -3,6 +3,12 @@ package com.murzify.bambuddyspool.core.settings
 import com.murzify.bambuddyspool.core.security.SecretValue
 import com.murzify.bambuddyspool.core.security.SecureTokenStore
 
+/**
+ * Replaces connection settings only after validation and required acknowledgements succeed.
+ *
+ * Validation occurs before writes. A successful replacement updates the token/settings and then clears only the
+ * domain snapshot before requesting an initial refresh; cancellation propagates without converting to a result.
+ */
 class ConnectionReplacementService(
     private val settingsStore: ConnectionSettingsStore,
     private val tokenStore: SecureTokenStore,

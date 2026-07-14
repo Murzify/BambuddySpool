@@ -2,6 +2,12 @@
 
 ## 2026-07-14
 
+- Completed `[DATA]-[014]` by documenting the public network, synchronization, client-lifecycle, and
+  connection-replacement contracts; narrowing the Room snapshot adapter to internal visibility; and preserving
+  coroutine cancellation through the Ktor request boundary with deterministic MockEngine coverage.
+- Confirmed the existing dispatcher, Room transaction, schema, sanitized contract, synchronization, and pinned
+  toolchain-workaround boundaries remain aligned with their authoritative documentation and checked the common,
+  Room, network, static, architecture, and iOS matrix without private-instance access.
 - Completed `[DATA]-[013]` with a data-layer security review and evidence covering storage classification, SQL
   constraints, synthetic fixtures, malformed and oversized responses, secret handling, URL metadata, generation
   races, numeric overflow, and malicious NFC input.

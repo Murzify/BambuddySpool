@@ -138,7 +138,7 @@ Review storage classification, SQL constraints, malformed/oversized responses, s
 Task DOD
 Critical/High issues are fixed with negative tests; token storage is exclusive; allocation bounds are enforced where possible; evidence is recorded in `slop/security/data-review.md`.
 
-- [ ] [DATA]-[014] Polish Data and Infrastructure Code
+- [x] [DATA]-[014] Polish Data and Infrastructure Code
 Task Context
 Format code, narrow visibility, document public contracts, and inspect cancellation, dispatcher ownership, transaction boundaries, and compatibility workarounds.
 Task DOD

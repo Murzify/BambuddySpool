@@ -28,6 +28,13 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 
+/**
+ * Coordinates complete server-authoritative snapshot refreshes for one application scope.
+ *
+ * Concurrent triggers join one active refresh. Caller-owned [scope] defines that refresh's lifetime; cancellation
+ * remains cooperative and is never translated into a sync failure. Publication is delegated to [SnapshotStore],
+ * which must atomically compare and advance the snapshot generation.
+ */
 class AtomicSnapshotSynchronizer(
     private val repository: BambuddyRepository,
     private val store: SnapshotStore,
@@ -241,6 +248,12 @@ class AtomicSnapshotSynchronizer(
     }
 }
 
+/**
+ * Atomic persistence boundary for a complete validated domain snapshot.
+ *
+ * [publishSnapshot] must either publish the entire snapshot while advancing its generation, reject a stale expected
+ * generation, or leave the previous cache intact. Implementations must not expose partial snapshots.
+ */
 interface SnapshotStore {
     suspend fun currentGeneration(): SnapshotGeneration
 
@@ -250,6 +263,7 @@ interface SnapshotStore {
     ): SnapshotPublishResult
 }
 
+/** Time source injected to keep synchronization metadata deterministic in tests. */
 fun interface SyncClock {
     fun nowEpochMillis(): Long
 }

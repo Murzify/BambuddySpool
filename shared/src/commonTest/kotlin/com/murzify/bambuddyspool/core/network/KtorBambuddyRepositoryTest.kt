@@ -29,6 +29,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.IOException
 
@@ -118,6 +120,19 @@ class KtorBambuddyRepositoryTest {
 
         assertFalse(failure.toString().contains(secret), failure.toString())
         assertContains(failure.toString(), "Transport")
+    }
+
+    @Test
+    fun coroutineCancellationPropagatesWithoutBecomingATypedNetworkFailure() = runTest {
+        val cancellation = CancellationException("synthetic cancellation")
+        val repository = repositoryThrowing(cancellation)
+
+        try {
+            repository.validateAuth()
+            fail("Expected coroutine cancellation to propagate")
+        } catch (actual: CancellationException) {
+            assertEquals(cancellation.message, actual.message)
+        }
     }
 
     private fun repositoryResponding(

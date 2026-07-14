@@ -17,7 +17,8 @@ import com.murzify.bambuddyspool.core.domain.PrinterSlot
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.Spool
 
-class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore {
+/** Room-backed [SnapshotStore] adapter; Room owns the single transaction used for publication. */
+internal class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore {
     override suspend fun currentGeneration(): SnapshotGeneration = database.syncMetadata()
         .currentSyncMetadata()
         ?.snapshotGeneration
