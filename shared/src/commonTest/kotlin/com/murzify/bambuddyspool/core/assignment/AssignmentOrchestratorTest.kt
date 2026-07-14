@@ -19,6 +19,8 @@ import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
 import com.murzify.bambuddyspool.core.network.TransportFailureReason
+import com.murzify.bambuddyspool.core.performance.AssignmentTimingStage
+import com.murzify.bambuddyspool.core.performance.InMemoryAssignmentTiming
 import com.murzify.bambuddyspool.core.platform.ClipboardService
 import com.murzify.bambuddyspool.core.platform.HapticsService
 import com.murzify.bambuddyspool.core.topology.KnownSlotTopologyResolver
@@ -260,6 +262,24 @@ class AssignmentOrchestratorTest {
     }
 
     @Test
+    fun verifiedAssignmentPublishesOnlyEphemeralStageTiming() = runTest {
+        val timing = InMemoryAssignmentTiming()
+        val repository = FakeAssignmentRepository(verificationResults = listOf(success(listOf(assignment()))))
+
+        assertIs<AssignmentResult.Success>(orchestrator(repository, timing = timing).execute(intent()))
+
+        assertEquals(
+            listOf(
+                AssignmentTimingStage.ContextRefreshed,
+                AssignmentTimingStage.PostCompleted,
+                AssignmentTimingStage.Verified,
+                AssignmentTimingStage.Published
+            ),
+            timing.samples().map { it.stage }
+        )
+    }
+
+    @Test
     fun callerCancellationAfterPostSchedulingDoesNotCancelApplicationScopedPost() = runTest {
         val postStarted = CompletableDeferred<Unit>()
         val allowPostCompletion = CompletableDeferred<Unit>()
@@ -286,14 +306,17 @@ class AssignmentOrchestratorTest {
         repository: FakeAssignmentRepository,
         freshnessGate: AssignmentFreshnessGate = AssignmentFreshnessGate { AssignmentFreshness.Fresh },
         poster: InitialAssignmentPoster = InitialAssignmentPoster(repository::createAssignment),
-        secondaryFeedback: AssignmentSecondaryFeedback? = null
+        secondaryFeedback: AssignmentSecondaryFeedback? = null,
+        timing: com.murzify.bambuddyspool.core.performance.AssignmentTiming =
+            com.murzify.bambuddyspool.core.performance.NoOpAssignmentTiming
     ): DefaultAssignmentOrchestrator = DefaultAssignmentOrchestrator(
         repository = repository,
         topologyResolver = KnownSlotTopologyResolver(),
         freshnessGate = freshnessGate,
         applicationScope = this,
         poster = poster,
-        secondaryFeedback = secondaryFeedback
+        secondaryFeedback = secondaryFeedback,
+        timing = timing
     )
 }
 

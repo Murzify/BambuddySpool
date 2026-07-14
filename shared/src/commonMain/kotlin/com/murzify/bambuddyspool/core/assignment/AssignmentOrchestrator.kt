@@ -22,6 +22,9 @@ import com.murzify.bambuddyspool.core.domain.VerificationMismatchReason
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
+import com.murzify.bambuddyspool.core.performance.AssignmentTiming
+import com.murzify.bambuddyspool.core.performance.AssignmentTimingStage
+import com.murzify.bambuddyspool.core.performance.NoOpAssignmentTiming
 import com.murzify.bambuddyspool.core.topology.SlotMutationTargetResolution
 import com.murzify.bambuddyspool.core.topology.SlotTopologyResolution
 import com.murzify.bambuddyspool.core.topology.SlotTopologyResolver
@@ -102,7 +105,9 @@ class DefaultAssignmentOrchestrator(
     private val applicationScope: CoroutineScope,
     private val poster: InitialAssignmentPoster = InitialAssignmentPoster(repository::createAssignment),
     private val wait: suspend (Long) -> Unit = { delay(it) },
-    private val secondaryFeedback: AssignmentSecondaryFeedback? = null
+    private val secondaryFeedback: AssignmentSecondaryFeedback? = null,
+    /** Process-local engineering hook; it is not a telemetry or diagnostic sink. */
+    private val timing: AssignmentTiming = NoOpAssignmentTiming
 ) : AssignmentOrchestrator {
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     override suspend fun preflight(intent: AssignmentIntent): AssignmentPreflight {
@@ -187,15 +192,22 @@ class DefaultAssignmentOrchestrator(
 
     override suspend fun execute(intent: AssignmentIntent): AssignmentResult =
         when (val preflight = preflight(intent)) {
-            is AssignmentPreflight.AlreadyAssigned -> preflight.result
+            is AssignmentPreflight.AlreadyAssigned -> preflight.result.also {
+                timing.mark(AssignmentTimingStage.ContextRefreshed)
+                timing.mark(AssignmentTimingStage.Verified)
+                timing.mark(AssignmentTimingStage.Published)
+            }
             is AssignmentPreflight.Blocked -> AssignmentResult.Failure(preflight.failure)
             is AssignmentPreflight.ConfirmationRequired -> AssignmentResult.Failure(
                 AssignmentWorkflowFailure.ConfirmationRequired(preflight.reason)
             )
             is AssignmentPreflight.Ready -> {
+                timing.mark(AssignmentTimingStage.ContextRefreshed)
                 val command = preflight.command
                 // The application-scoped operation must finish ambiguity resolution after its first POST is scheduled.
-                applicationScope.async { postThenVerify(command) }.await()
+                applicationScope.async { postThenVerify(command) }.await().also {
+                    timing.mark(AssignmentTimingStage.Published)
+                }
             }
         }
 
@@ -203,7 +215,10 @@ class DefaultAssignmentOrchestrator(
     private suspend fun postThenVerify(command: AssignmentCommand): AssignmentResult {
         for (retryDelay in POST_RETRY_DELAYS_MILLIS) {
             when (val post = poster.post(command)) {
-                is BambuddyNetworkResult.Success -> return verify(command)
+                is BambuddyNetworkResult.Success -> {
+                    timing.mark(AssignmentTimingStage.PostCompleted)
+                    return verify(command)
+                }
                 is BambuddyNetworkResult.Failure -> if (!post.error.isRetryablePostFailure()) {
                     return AssignmentResult.Failure(AssignmentWorkflowFailure.Network(post.error))
                 }
@@ -212,7 +227,10 @@ class DefaultAssignmentOrchestrator(
         }
 
         return when (val finalPost = poster.post(command)) {
-            is BambuddyNetworkResult.Success -> verify(command)
+            is BambuddyNetworkResult.Success -> {
+                timing.mark(AssignmentTimingStage.PostCompleted)
+                verify(command)
+            }
             is BambuddyNetworkResult.Failure -> AssignmentResult.Failure(
                 AssignmentWorkflowFailure.Network(finalPost.error)
             )
@@ -228,7 +246,10 @@ class DefaultAssignmentOrchestrator(
             when (val assignmentsResult = repository.getAssignments(command.slot.printerId)) {
                 is BambuddyNetworkResult.Failure -> lastReadFailure = assignmentsResult.error
                 is BambuddyNetworkResult.Success -> exactVerification(command, assignmentsResult.value)?.let { result ->
-                    (result as? AssignmentResult.Success)?.let { secondaryFeedback?.reportVerifiedSuccess(it.outcome) }
+                    (result as? AssignmentResult.Success)?.let {
+                        timing.mark(AssignmentTimingStage.Verified)
+                        secondaryFeedback?.reportVerifiedSuccess(it.outcome)
+                    }
                     return result
                 }
             }

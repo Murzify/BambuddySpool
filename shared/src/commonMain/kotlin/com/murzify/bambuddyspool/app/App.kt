@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -62,7 +63,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun App(root: RootComponent) {
+fun App(root: RootComponent, onProcessingComposed: () -> Unit = {}) {
     val state by root.state.collectAsState()
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -70,13 +71,13 @@ fun App(root: RootComponent) {
             val contentPadding = if (widthClass == UiWidthClass.Expanded) 48.dp else 24.dp
             if (widthClass == UiWidthClass.Compact) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    RootContent(state, root, Modifier.weight(1f), contentPadding)
+                    RootContent(state, root, Modifier.weight(1f), contentPadding, onProcessingComposed)
                     BottomNavigation(state.destination, root::accept)
                 }
             } else {
                 Row(modifier = Modifier.fillMaxSize()) {
                     RailNavigation(state.destination, root::accept)
-                    RootContent(state, root, Modifier.weight(1f), contentPadding)
+                    RootContent(state, root, Modifier.weight(1f), contentPadding, onProcessingComposed)
                 }
             }
         }
@@ -114,7 +115,8 @@ private fun RootContent(
     state: RootState,
     root: RootComponent,
     modifier: Modifier,
-    contentPadding: androidx.compose.ui.unit.Dp
+    contentPadding: androidx.compose.ui.unit.Dp,
+    onProcessingComposed: () -> Unit
 ) = Surface(modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().padding(contentPadding),
@@ -129,8 +131,10 @@ private fun RootContent(
         state.transientWorkflow?.let { workflow ->
             val label = stringResource(workflow.label())
             when (workflow) {
-                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Processing ->
+                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Processing -> {
+                    LaunchedEffect(Unit) { onProcessingComposed() }
                     Text(label, modifier = Modifier.processingAnnouncement())
+                }
                 com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Success,
                 com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Error -> FocusedStatusTitle(label)
                 else -> Text(label)
