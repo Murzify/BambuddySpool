@@ -58,7 +58,7 @@ internal class RoomCacheProjectionRepository(
 
     override fun observePrinters(): Flow<CacheProjectionState<List<PrinterSummaryProjection>>> = combineProjectionState(
         dataSource.observePrinters(),
-        dataSource.observeActivePrinterCount(),
+        dataSource.observePrinterCount(),
         dataSource.observeSyncMetadata(),
         settingsStore.observeSettings(),
         refreshStates
@@ -69,7 +69,7 @@ internal class RoomCacheProjectionRepository(
     override fun observePrinterSlots(printerId: PrinterId): Flow<CacheProjectionState<List<PrinterSlotProjection>>> =
         combineProjectionState(
             dataSource.observePrinterSlots(printerId),
-            dataSource.observeActivePrinterCount(),
+            dataSource.observePrinterCount(),
             dataSource.observeSyncMetadata(),
             settingsStore.observeSettings(),
             refreshStates
@@ -132,7 +132,7 @@ internal class RoomCacheProjectionRepository(
 
 internal interface CacheProjectionDataSource {
     fun observePrinters(): Flow<List<PrinterListProjection>>
-    fun observeActivePrinterCount(): Flow<Int>
+    fun observePrinterCount(): Flow<Int>
     fun observePrinterSlots(printerId: PrinterId): Flow<List<PrinterSlotAssignmentProjection>>
     fun observeDefaultSpoolPage(page: PageRequest): Flow<List<SpoolListProjection>>
     fun observeSpoolSearch(
@@ -149,7 +149,7 @@ internal interface CacheProjectionDataSource {
 internal class RoomCacheProjectionDataSource(private val database: BambuddyDatabase) : CacheProjectionDataSource {
     override fun observePrinters(): Flow<List<PrinterListProjection>> = database.printers().observePrinters()
 
-    override fun observeActivePrinterCount(): Flow<Int> = database.printers().observeActivePrinterCount()
+    override fun observePrinterCount(): Flow<Int> = database.printers().observePrinterCount()
 
     override fun observePrinterSlots(printerId: PrinterId): Flow<List<PrinterSlotAssignmentProjection>> =
         database.printerSlots().observePrinterSlots(printerId.value)

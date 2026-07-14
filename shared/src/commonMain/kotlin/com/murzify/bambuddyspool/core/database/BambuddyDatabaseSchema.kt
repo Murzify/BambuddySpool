@@ -22,13 +22,9 @@ object BambuddyDatabaseSchema {
         CREATE_INDEX_PRINTERS_SNAPSHOT_GENERATION,
         CREATE_INDEX_PRINTERS_NAME,
         CREATE_INDEX_PRINTER_SLOTS_PRINTER_ID,
-        CREATE_INDEX_PRINTER_SLOTS_KIND,
         CREATE_INDEX_PRINTER_SLOTS_SNAPSHOT_GENERATION,
         CREATE_INDEX_SPOOLS_DEFAULT_FILTER_SORT,
         CREATE_INDEX_SPOOLS_SNAPSHOT_GENERATION,
-        CREATE_INDEX_SPOOLS_MANUFACTURER,
-        CREATE_INDEX_SPOOLS_MATERIAL,
-        CREATE_INDEX_SPOOLS_COLOR_NAME,
         CREATE_INDEX_ASSIGNMENTS_SLOT_KEY_UNIQUE,
         CREATE_INDEX_ASSIGNMENTS_SPOOL_ID,
         CREATE_INDEX_ASSIGNMENTS_SNAPSHOT_GENERATION
@@ -39,9 +35,7 @@ const val CREATE_PRINTERS: String = """
 CREATE TABLE IF NOT EXISTS printers (
     printer_id INTEGER NOT NULL PRIMARY KEY,
     name TEXT,
-    is_active INTEGER NOT NULL,
-    snapshot_generation INTEGER NOT NULL,
-    updated_at_epoch_millis INTEGER NOT NULL
+    snapshot_generation INTEGER NOT NULL
 )
 """
 
@@ -54,7 +48,6 @@ CREATE TABLE IF NOT EXISTS printer_slots (
     label TEXT,
     display_order INTEGER NOT NULL,
     snapshot_generation INTEGER NOT NULL,
-    updated_at_epoch_millis INTEGER NOT NULL,
     PRIMARY KEY (printer_id, ams_id, tray_id),
     FOREIGN KEY (printer_id) REFERENCES printers(printer_id) ON DELETE CASCADE
 )
@@ -66,17 +59,13 @@ CREATE TABLE IF NOT EXISTS spools (
     display_name TEXT,
     normalized_display_name TEXT NOT NULL,
     manufacturer TEXT,
-    normalized_manufacturer TEXT,
     material TEXT,
-    normalized_material TEXT,
     color_name TEXT,
-    normalized_color_name TEXT,
     remaining_grams INTEGER,
     is_active INTEGER NOT NULL,
     archived_at_epoch_millis INTEGER,
     last_used_at_epoch_millis INTEGER,
-    snapshot_generation INTEGER NOT NULL,
-    updated_at_epoch_millis INTEGER NOT NULL
+    snapshot_generation INTEGER NOT NULL
 )
 """
 
@@ -101,9 +90,7 @@ CREATE TABLE IF NOT EXISTS assignments (
     tray_id INTEGER NOT NULL,
     configured INTEGER NOT NULL,
     pending_configuration INTEGER NOT NULL,
-    created_at_epoch_millis INTEGER,
     snapshot_generation INTEGER NOT NULL,
-    updated_at_epoch_millis INTEGER NOT NULL,
     FOREIGN KEY (printer_id) REFERENCES printers(printer_id) ON DELETE CASCADE,
     FOREIGN KEY (printer_id, ams_id, tray_id) REFERENCES printer_slots(printer_id, ams_id, tray_id)
         ON DELETE CASCADE,
@@ -116,8 +103,7 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
     metadata_key TEXT NOT NULL PRIMARY KEY,
     last_successful_sync_at_epoch_millis INTEGER,
     snapshot_generation INTEGER NOT NULL,
-    schema_version INTEGER NOT NULL,
-    updated_at_epoch_millis INTEGER NOT NULL
+    schema_version INTEGER NOT NULL
 )
 """
 
@@ -129,9 +115,6 @@ const val CREATE_INDEX_PRINTERS_NAME: String = "CREATE INDEX IF NOT EXISTS index
 const val CREATE_INDEX_PRINTER_SLOTS_PRINTER_ID: String =
     "CREATE INDEX IF NOT EXISTS index_printer_slots_printer_id ON printer_slots(printer_id)"
 
-const val CREATE_INDEX_PRINTER_SLOTS_KIND: String =
-    "CREATE INDEX IF NOT EXISTS index_printer_slots_kind ON printer_slots(kind)"
-
 const val CREATE_INDEX_PRINTER_SLOTS_SNAPSHOT_GENERATION: String =
     "CREATE INDEX IF NOT EXISTS index_printer_slots_snapshot_generation ON printer_slots(snapshot_generation)"
 
@@ -141,15 +124,6 @@ const val CREATE_INDEX_SPOOLS_DEFAULT_FILTER_SORT: String =
 
 const val CREATE_INDEX_SPOOLS_SNAPSHOT_GENERATION: String =
     "CREATE INDEX IF NOT EXISTS index_spools_snapshot_generation ON spools(snapshot_generation)"
-
-const val CREATE_INDEX_SPOOLS_MANUFACTURER: String =
-    "CREATE INDEX IF NOT EXISTS index_spools_manufacturer ON spools(normalized_manufacturer)"
-
-const val CREATE_INDEX_SPOOLS_MATERIAL: String =
-    "CREATE INDEX IF NOT EXISTS index_spools_material ON spools(normalized_material)"
-
-const val CREATE_INDEX_SPOOLS_COLOR_NAME: String =
-    "CREATE INDEX IF NOT EXISTS index_spools_color_name ON spools(normalized_color_name)"
 
 const val CREATE_INDEX_ASSIGNMENTS_SLOT_KEY_UNIQUE: String =
     "CREATE UNIQUE INDEX IF NOT EXISTS index_assignments_slot_key_unique ON assignments(printer_id, ams_id, tray_id)"

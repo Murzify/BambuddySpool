@@ -22,11 +22,7 @@ abstract class BambuddyDatabase : RoomDatabase() {
 
     abstract fun spools(): SpoolDao
 
-    abstract fun assignments(): AssignmentDao
-
     abstract fun syncMetadata(): SyncMetadataDao
-
-    abstract fun cacheMaintenance(): CacheMaintenanceDao
 
     abstract fun snapshotTransactions(): SnapshotTransactionDao
 }

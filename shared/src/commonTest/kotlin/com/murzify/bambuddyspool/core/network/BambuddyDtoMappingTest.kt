@@ -47,12 +47,10 @@ class BambuddyDtoMappingTest {
         val result = parseAssignmentResponse(
             """
             {
-              "id": 4,
               "spool_id": 3,
               "printer_id": 1,
               "ams_id": 255,
               "tray_id": 0,
-              "created_at": "2000-01-01T00:00:00Z",
               "configured": true,
               "pending_config": false,
               "synthetic_additive_field": "ignored"
@@ -72,12 +70,10 @@ class BambuddyDtoMappingTest {
         val result = parseAssignmentResponse(
             """
             {
-              "id": 4,
               "spool_id": 3,
               "printer_id": 1,
               "ams_id": 255,
               "tray_id": 0,
-              "created_at": "2000-01-01T00:00:00Z",
               "configured": false,
               "pending_config": true
             }
@@ -158,12 +154,10 @@ class BambuddyDtoMappingTest {
         val result = parseAssignmentResponse(
             """
             {
-              "id": 4,
               "spool_id": 3,
               "printer_id": 1,
               "ams_id": 255,
               "tray_id": 0,
-              "created_at": "2000-01-01T00:00:00Z",
               "configured": false
             }
             """.trimIndent()
@@ -178,12 +172,10 @@ class BambuddyDtoMappingTest {
         val result = parseAssignmentResponse(
             """
             {
-              "id": 4,
               "spool_id": 3,
               "printer_id": 1,
               "ams_id": 256,
               "tray_id": 0,
-              "created_at": "2000-01-01T00:00:00Z",
               "configured": false,
               "pending_config": false
             }

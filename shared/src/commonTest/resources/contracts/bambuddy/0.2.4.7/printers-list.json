@@ -6,11 +6,11 @@
   "categories": {
     "minimal_valid": { "payload": [] },
     "representative_valid": {
-      "payload": [{ "id": 1, "name": "Synthetic Printer", "model": null, "is_active": true, "synthetic_additive_field": "ignored" }]
+      "payload": [{ "id": 1, "name": "Synthetic Printer", "synthetic_additive_field": "ignored" }]
     },
     "incompatible": {
       "expected_result": "IncompatibleApiResponse",
-      "payload": [{ "id": "not-an-integer", "name": "Synthetic Printer", "model": null, "is_active": true }]
+      "payload": [{ "id": "not-an-integer", "name": "Synthetic Printer" }]
     }
   }
 }

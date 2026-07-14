@@ -64,23 +64,6 @@ data class SpoolListProjection(
     )
 }
 
-data class AssignmentProjection(
-    val assignmentId: Long,
-    val spoolId: Long,
-    val printerId: Long,
-    val amsId: Int,
-    val trayId: Int,
-    val configured: Boolean,
-    val pendingConfiguration: Boolean
-) {
-    fun toDomain(): Assignment = Assignment(
-        spoolId = spoolId.toSpoolId(),
-        slot = slotKey(printerId = printerId, amsId = amsId, trayId = trayId),
-        configured = configured,
-        pendingConfiguration = pendingConfiguration
-    )
-}
-
 data class SyncMetadataProjection(val lastSuccessfulSyncAtEpochMillis: Long?, val snapshotGeneration: Long) {
     fun domainGeneration(): SnapshotGeneration = SnapshotGeneration.from(snapshotGeneration)
         ?: error("Persisted snapshot generation must be non-negative")

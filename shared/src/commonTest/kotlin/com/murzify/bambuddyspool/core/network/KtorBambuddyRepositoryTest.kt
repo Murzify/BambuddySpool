@@ -211,16 +211,15 @@ class KtorBambuddyRepositoryTest {
     private companion object {
         val JSON_HEADERS = headersOf(HttpHeaders.ContentType, "application/json")
         const val ERROR_JSON = """{"detail":"synthetic error"}"""
-        const val AUTH_ME_JSON =
-            """{"id":1,"username":"synthetic","role":"admin","is_active":true,"is_admin":true,"created_at":"2000-01-01T00:00:00Z"}"""
-        const val PRINTERS_JSON = """[{"id":1,"name":"Synthetic Printer","model":null,"is_active":true}]"""
+        const val AUTH_ME_JSON = "{}"
+        const val PRINTERS_JSON = """[{"id":1,"name":"Synthetic Printer"}]"""
         const val PRINTER_STATUS_JSON =
             """{"id":1,"name":"Synthetic Printer","connected":true,"vt_tray":[{"id":255,"tray_id_name":"External"}]}"""
         const val SPOOL_JSON =
             """{"id":3,"material":"PLA","subtype":"Blue","color_name":"Blue","rgba":"0000FFFF","brand":"Synthetic","label_weight":1000,"core_weight":250,"weight_used":100.0,"last_used":null,"archived_at":null,"created_at":"2000-01-01T00:00:00Z","updated_at":"2000-01-01T00:00:00Z"}"""
         const val SPOOLS_JSON = "[$SPOOL_JSON]"
         const val ASSIGNMENT_JSON =
-            """{"id":4,"spool_id":3,"printer_id":1,"ams_id":255,"tray_id":0,"created_at":"2000-01-01T00:00:00Z","configured":true,"pending_config":false,"ams_label":"External"}"""
+            """{"spool_id":3,"printer_id":1,"ams_id":255,"tray_id":0,"configured":true,"pending_config":false}"""
         const val ASSIGNMENTS_JSON = "[$ASSIGNMENT_JSON]"
         const val ASSIGNMENTS_BY_PRINTER_JSON = "[$ASSIGNMENT_JSON]"
     }

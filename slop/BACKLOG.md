@@ -120,7 +120,7 @@ Expose Room/DataStore flows for all features with InitialLoading, Content, Conte
 Task DOD
 Features do not know Room; large lists are lazy/pageable; stale data remains visible; disabled mutations explain why; one/multiple/deleted default transitions are tested.
 
-- [ ] [DATA]-[011] Remove Unused Models and Persistence Artifacts
+- [x] [DATA]-[011] Remove Unused Models and Persistence Artifacts
 Task Context
 Remove unused DTO fields, entities, DAOs, indexes, fixtures, migrations, and duplicate models while retaining migration schema exports. Never persist raw responses, diagnostics, access codes, or unrelated Bambuddy data.
 Task DOD

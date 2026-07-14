@@ -6,16 +6,16 @@
   "categories": {
     "minimal_valid": {
       "request": { "printer_id": 1, "ams_id": 255, "tray_id": 0, "spool_id": 3 },
-      "payload": { "id": 4, "spool_id": 3, "printer_id": 1, "ams_id": 255, "tray_id": 0, "created_at": "2000-01-01T00:00:00Z", "configured": false, "pending_config": false }
+      "payload": { "spool_id": 3, "printer_id": 1, "ams_id": 255, "tray_id": 0, "configured": false, "pending_config": false }
     },
     "representative_valid": {
       "request": { "printer_id": 1, "ams_id": 255, "tray_id": 0, "spool_id": 3 },
-      "payload": { "id": 4, "spool_id": 3, "printer_id": 1, "printer_name": null, "ams_id": 255, "tray_id": 0, "created_at": "2000-01-01T00:00:00Z", "configured": true, "pending_config": false, "ams_label": "External", "synthetic_additive_field": "ignored" }
+      "payload": { "spool_id": 3, "printer_id": 1, "printer_name": null, "ams_id": 255, "tray_id": 0, "configured": true, "pending_config": false, "synthetic_additive_field": "ignored" }
     },
     "incompatible": {
       "expected_result": "IncompatibleApiResponse",
       "request": { "printer_id": 1, "ams_id": 255, "tray_id": 0, "spool_id": "not-an-integer" },
-      "payload": { "id": 4, "spool_id": 3, "printer_id": 1, "ams_id": 255, "tray_id": 0, "created_at": "2000-01-01T00:00:00Z", "configured": false, "pending_config": false }
+      "payload": { "spool_id": 3, "printer_id": 1, "ams_id": 255, "tray_id": 0, "configured": false, "pending_config": false }
     }
   }
 }

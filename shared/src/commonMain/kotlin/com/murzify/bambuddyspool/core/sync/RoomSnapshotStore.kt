@@ -1,6 +1,7 @@
 package com.murzify.bambuddyspool.core.sync
 
 import com.murzify.bambuddyspool.core.database.AssignmentEntity
+import com.murzify.bambuddyspool.core.database.BAMBUDDY_DATABASE_VERSION
 import com.murzify.bambuddyspool.core.database.BambuddyDatabase
 import com.murzify.bambuddyspool.core.database.PrinterEntity
 import com.murzify.bambuddyspool.core.database.PrinterSlotEntity
@@ -45,17 +46,16 @@ class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore 
         onlyIfCurrentGeneration: SnapshotGeneration,
         generation: Long
     ): SnapshotPublishResult {
-        val printerEntities = snapshot.printers.map { it.toEntity(generation, snapshot.updatedAtEpochMillis) }
+        val printerEntities = snapshot.printers.map { it.toEntity(generation) }
         val slotEntities = snapshot.slots.mapIndexed { index, slot ->
             slot.toEntity(
                 generation = generation,
-                updatedAtEpochMillis = snapshot.updatedAtEpochMillis,
                 displayOrder = index
             )
         }
-        val spoolEntities = snapshot.spools.map { it.toEntity(generation, snapshot.updatedAtEpochMillis) }
+        val spoolEntities = snapshot.spools.map { it.toEntity(generation) }
         val assignmentEntities = snapshot.assignments.map { assignment ->
-            assignment.toEntity(generation, snapshot.updatedAtEpochMillis)
+            assignment.toEntity(generation)
                 ?: return SnapshotPublishResult.Rejected("Assignment ID overflow")
         }
 
@@ -65,8 +65,7 @@ class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore 
                 metadataKey = SYNC_METADATA_SNAPSHOT_KEY,
                 lastSuccessfulSyncAtEpochMillis = snapshot.updatedAtEpochMillis,
                 snapshotGeneration = generation,
-                schemaVersion = ROOM_SNAPSHOT_SCHEMA_VERSION,
-                updatedAtEpochMillis = snapshot.updatedAtEpochMillis
+                schemaVersion = BAMBUDDY_DATABASE_VERSION
             ),
             printers = printerEntities,
             printerIdsToReplace = snapshot.printers.map { it.id.value },
@@ -81,45 +80,37 @@ class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore 
     }
 }
 
-private fun Printer.toEntity(generation: Long, updatedAtEpochMillis: Long): PrinterEntity = PrinterEntity(
+private fun Printer.toEntity(generation: Long): PrinterEntity = PrinterEntity(
     printerId = id.value,
     name = name,
-    isActive = true,
-    snapshotGeneration = generation,
-    updatedAtEpochMillis = updatedAtEpochMillis
+    snapshotGeneration = generation
 )
 
-private fun PrinterSlot.toEntity(generation: Long, updatedAtEpochMillis: Long, displayOrder: Int): PrinterSlotEntity =
-    PrinterSlotEntity(
-        printerId = key.printerId.value,
-        amsId = key.amsId,
-        trayId = key.trayId,
-        kind = kind.toPersistedSlotKind().storageValue,
-        label = label,
-        displayOrder = displayOrder,
-        snapshotGeneration = generation,
-        updatedAtEpochMillis = updatedAtEpochMillis
-    )
+private fun PrinterSlot.toEntity(generation: Long, displayOrder: Int): PrinterSlotEntity = PrinterSlotEntity(
+    printerId = key.printerId.value,
+    amsId = key.amsId,
+    trayId = key.trayId,
+    kind = kind.toPersistedSlotKind().storageValue,
+    label = label,
+    displayOrder = displayOrder,
+    snapshotGeneration = generation
+)
 
-private fun Spool.toEntity(generation: Long, updatedAtEpochMillis: Long): SpoolEntity = SpoolEntity(
+private fun Spool.toEntity(generation: Long): SpoolEntity = SpoolEntity(
     spoolId = id.value,
     displayName = name,
     normalizedDisplayName = name.normalizedSearchValue().orEmpty(),
     manufacturer = manufacturer,
-    normalizedManufacturer = manufacturer.normalizedSearchValue(),
     material = material,
-    normalizedMaterial = material.normalizedSearchValue(),
     colorName = colorName,
-    normalizedColorName = colorName.normalizedSearchValue(),
     remainingGrams = remainingGrams,
     isActive = true,
     archivedAtEpochMillis = null,
     lastUsedAtEpochMillis = null,
-    snapshotGeneration = generation,
-    updatedAtEpochMillis = updatedAtEpochMillis
+    snapshotGeneration = generation
 )
 
-private fun Assignment.toEntity(generation: Long, updatedAtEpochMillis: Long): AssignmentEntity? {
+private fun Assignment.toEntity(generation: Long): AssignmentEntity? {
     val assignmentId = stableAssignmentId(slot.printerId.value, slot.amsId, slot.trayId) ?: return null
     return AssignmentEntity(
         assignmentId = assignmentId,
@@ -129,9 +120,7 @@ private fun Assignment.toEntity(generation: Long, updatedAtEpochMillis: Long): A
         trayId = slot.trayId,
         configured = configured,
         pendingConfiguration = pendingConfiguration,
-        createdAtEpochMillis = null,
-        snapshotGeneration = generation,
-        updatedAtEpochMillis = updatedAtEpochMillis
+        snapshotGeneration = generation
     )
 }
 
@@ -153,4 +142,3 @@ private val INITIAL_GENERATION: SnapshotGeneration = SnapshotGeneration.from(0L)
 
 private const val SLOT_COORDINATE_FACTOR = 1_000L
 private const val PRINTER_ASSIGNMENT_FACTOR = 1_000_000L
-private const val ROOM_SNAPSHOT_SCHEMA_VERSION = 1

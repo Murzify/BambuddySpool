@@ -28,9 +28,7 @@
       "request": { "path_parameters": [], "query_parameters": [], "body_fields": [] },
       "used_fields": [
         { "path": "[].id", "type": "integer", "nullable": false },
-        { "path": "[].name", "type": "string", "nullable": false },
-        { "path": "[].model", "type": "string", "nullable": true },
-        { "path": "[].is_active", "type": "boolean", "nullable": false }
+        { "path": "[].name", "type": "string", "nullable": false }
       ],
       "excluded_sensitive_fields": ["serial_number", "ip_address", "access_code"],
       "limits": { "response_bytes": null, "response_limit_note": "Not specified by TECHSPEC", "error_response_bytes": 262144 },
@@ -108,15 +106,12 @@
       "auth": "X-API-Key header",
       "request": { "path_parameters": [], "query_parameters": [], "body_fields": [] },
       "used_fields": [
-        { "path": "[].id", "type": "integer", "nullable": false },
         { "path": "[].spool_id", "type": "integer", "nullable": false },
         { "path": "[].printer_id", "type": "integer", "nullable": false },
         { "path": "[].ams_id", "type": "integer", "nullable": false },
         { "path": "[].tray_id", "type": "integer", "nullable": false },
-        { "path": "[].created_at", "type": "date-time", "nullable": false },
         { "path": "[].configured", "type": "boolean", "nullable": false },
-        { "path": "[].pending_config", "type": "boolean", "nullable": false },
-        { "path": "[].ams_label", "type": "string", "nullable": true }
+        { "path": "[].pending_config", "type": "boolean", "nullable": false }
       ],
       "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
       "fixture": "assignments-list.json"
@@ -128,15 +123,12 @@
       "auth": "X-API-Key header",
       "request": { "path_parameters": [], "query_parameters": ["printer_id: positive integer"], "body_fields": [] },
       "used_fields": [
-        { "path": "[].id", "type": "integer", "nullable": false },
         { "path": "[].spool_id", "type": "integer", "nullable": false },
         { "path": "[].printer_id", "type": "integer", "nullable": false },
         { "path": "[].ams_id", "type": "integer", "nullable": false },
         { "path": "[].tray_id", "type": "integer", "nullable": false },
-        { "path": "[].created_at", "type": "date-time", "nullable": false },
         { "path": "[].configured", "type": "boolean", "nullable": false },
-        { "path": "[].pending_config", "type": "boolean", "nullable": false },
-        { "path": "[].ams_label", "type": "string", "nullable": true }
+        { "path": "[].pending_config", "type": "boolean", "nullable": false }
       ],
       "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
       "fixture": "assignments-by-printer.json"
@@ -148,15 +140,12 @@
       "auth": "X-API-Key header",
       "request": { "path_parameters": [], "query_parameters": [], "body_fields": ["printer_id", "ams_id", "tray_id", "spool_id"] },
       "used_fields": [
-        { "path": "id", "type": "integer", "nullable": false },
         { "path": "spool_id", "type": "integer", "nullable": false },
         { "path": "printer_id", "type": "integer", "nullable": false },
         { "path": "ams_id", "type": "integer", "nullable": false },
         { "path": "tray_id", "type": "integer", "nullable": false },
-        { "path": "created_at", "type": "date-time", "nullable": false },
         { "path": "configured", "type": "boolean", "nullable": false },
-        { "path": "pending_config", "type": "boolean", "nullable": false },
-        { "path": "ams_label", "type": "string", "nullable": true }
+        { "path": "pending_config", "type": "boolean", "nullable": false }
       ],
       "limits": { "response_bytes": 16777216, "error_response_bytes": 262144 },
       "fixture": "assignment-create.json"

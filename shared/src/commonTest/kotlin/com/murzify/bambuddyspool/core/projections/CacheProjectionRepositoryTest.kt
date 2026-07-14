@@ -184,7 +184,7 @@ private class FakeCacheProjectionDataSource(
 
     override fun observePrinters(): Flow<List<PrinterListProjection>> = MutableStateFlow(emptyList())
 
-    override fun observeActivePrinterCount(): Flow<Int> = MutableStateFlow(0)
+    override fun observePrinterCount(): Flow<Int> = MutableStateFlow(0)
 
     override fun observePrinterSlots(printerId: PrinterId): Flow<List<PrinterSlotAssignmentProjection>> =
         MutableStateFlow(emptyList())

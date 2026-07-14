@@ -21,12 +21,8 @@ data class PrinterEntity(
     val printerId: Long,
     @ColumnInfo(name = "name")
     val name: String?,
-    @ColumnInfo(name = "is_active")
-    val isActive: Boolean,
     @ColumnInfo(name = "snapshot_generation")
-    val snapshotGeneration: Long,
-    @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val snapshotGeneration: Long
 )
 
 @Suppress("LongParameterList")
@@ -43,7 +39,6 @@ data class PrinterEntity(
     ],
     indices = [
         Index(name = "index_printer_slots_printer_id", value = ["printer_id"]),
-        Index(name = "index_printer_slots_kind", value = ["kind"]),
         Index(name = "index_printer_slots_snapshot_generation", value = ["snapshot_generation"])
     ]
 )
@@ -61,9 +56,7 @@ data class PrinterSlotEntity(
     @ColumnInfo(name = "display_order")
     val displayOrder: Int,
     @ColumnInfo(name = "snapshot_generation")
-    val snapshotGeneration: Long,
-    @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val snapshotGeneration: Long
 )
 
 @Suppress("LongParameterList")
@@ -81,10 +74,7 @@ data class PrinterSlotEntity(
                 "spool_id"
             ]
         ),
-        Index(name = "index_spools_snapshot_generation", value = ["snapshot_generation"]),
-        Index(name = "index_spools_manufacturer", value = ["normalized_manufacturer"]),
-        Index(name = "index_spools_material", value = ["normalized_material"]),
-        Index(name = "index_spools_color_name", value = ["normalized_color_name"])
+        Index(name = "index_spools_snapshot_generation", value = ["snapshot_generation"])
     ]
 )
 data class SpoolEntity(
@@ -97,16 +87,10 @@ data class SpoolEntity(
     val normalizedDisplayName: String,
     @ColumnInfo(name = "manufacturer")
     val manufacturer: String?,
-    @ColumnInfo(name = "normalized_manufacturer")
-    val normalizedManufacturer: String?,
     @ColumnInfo(name = "material")
     val material: String?,
-    @ColumnInfo(name = "normalized_material")
-    val normalizedMaterial: String?,
     @ColumnInfo(name = "color_name")
     val colorName: String?,
-    @ColumnInfo(name = "normalized_color_name")
-    val normalizedColorName: String?,
     @ColumnInfo(name = "remaining_grams")
     val remainingGrams: Int?,
     @ColumnInfo(name = "is_active")
@@ -116,9 +100,7 @@ data class SpoolEntity(
     @ColumnInfo(name = "last_used_at_epoch_millis")
     val lastUsedAtEpochMillis: Long?,
     @ColumnInfo(name = "snapshot_generation")
-    val snapshotGeneration: Long,
-    @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val snapshotGeneration: Long
 )
 
 @Entity(tableName = "spools_fts")
@@ -183,12 +165,8 @@ data class AssignmentEntity(
     val configured: Boolean,
     @ColumnInfo(name = "pending_configuration")
     val pendingConfiguration: Boolean,
-    @ColumnInfo(name = "created_at_epoch_millis")
-    val createdAtEpochMillis: Long?,
     @ColumnInfo(name = "snapshot_generation")
-    val snapshotGeneration: Long,
-    @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val snapshotGeneration: Long
 )
 
 @Entity(tableName = "sync_metadata")
@@ -201,9 +179,7 @@ data class SyncMetadataEntity(
     @ColumnInfo(name = "snapshot_generation")
     val snapshotGeneration: Long,
     @ColumnInfo(name = "schema_version")
-    val schemaVersion: Int,
-    @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val schemaVersion: Int
 )
 
 const val SYNC_METADATA_SNAPSHOT_KEY: String = "domain_snapshot"

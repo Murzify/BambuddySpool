@@ -8,24 +8,12 @@ import com.murzify.bambuddyspool.core.domain.VirtualTray
 import kotlin.math.roundToInt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+
+internal typealias AuthMeDto = JsonObject
 
 @Serializable
-internal data class AuthMeDto(
-    val id: Long,
-    val username: String,
-    val role: String,
-    @SerialName("is_active") val isActive: Boolean,
-    @SerialName("is_admin") val isAdmin: Boolean,
-    @SerialName("created_at") val createdAt: String
-)
-
-@Serializable
-internal data class PrinterDto(
-    val id: Long,
-    val name: String,
-    val model: String? = null,
-    @SerialName("is_active") val isActive: Boolean
-) {
+internal data class PrinterDto(val id: Long, val name: String) {
     fun toDomain(): Printer = Printer(id = id.toPrinterId(), name = name)
 }
 
@@ -84,25 +72,19 @@ internal data class SpoolDto(
 
 @Serializable
 internal data class AssignmentDto(
-    val id: Long,
     @SerialName("spool_id") val spoolId: Long,
     @SerialName("printer_id") val printerId: Long,
     @SerialName("ams_id") val amsId: Int,
     @SerialName("tray_id") val trayId: Int,
-    @SerialName("created_at") val createdAt: String,
     val configured: Boolean,
-    @SerialName("pending_config") val pendingConfig: Boolean,
-    @SerialName("ams_label") val amsLabel: String? = null
+    @SerialName("pending_config") val pendingConfig: Boolean
 ) {
-    fun toDomain(): Assignment {
-        id.validatePositiveId()
-        return Assignment(
-            spoolId = spoolId.toSpoolId(),
-            slot = slotKey(printerId = printerId, amsId = amsId, trayId = trayId),
-            configured = configured,
-            pendingConfiguration = pendingConfig
-        )
-    }
+    fun toDomain(): Assignment = Assignment(
+        spoolId = spoolId.toSpoolId(),
+        slot = slotKey(printerId = printerId, amsId = amsId, trayId = trayId),
+        configured = configured,
+        pendingConfiguration = pendingConfig
+    )
 }
 
 @Serializable

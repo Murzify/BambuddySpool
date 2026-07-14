@@ -1,11 +1,8 @@
 package com.murzify.bambuddyspool.core.database
 
-import com.murzify.bambuddyspool.core.domain.PrinterId
 import com.murzify.bambuddyspool.core.domain.SlotKind
-import com.murzify.bambuddyspool.core.domain.SpoolId
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class DatabaseSchemaContractTest {
@@ -39,42 +36,32 @@ class DatabaseSchemaContractTest {
         assertTrue(OBSERVE_SPOOL_LIST_QUERY.contains("s.archived_at_epoch_millis IS NULL"))
         assertTrue(OBSERVE_SPOOL_LIST_QUERY.contains("s.remaining_grams > 0"))
         assertTrue(OBSERVE_DEFAULT_SPOOL_LIST_QUERY.contains("INDEXED BY index_spools_default_filter_sort"))
-        assertTrue(SEARCH_DEFAULT_SPOOL_LIST_QUERY.contains("FROM spools_fts"))
-        assertTrue(SEARCH_DEFAULT_SPOOL_LIST_QUERY.contains("spools_fts MATCH :ftsQuery"))
         assertTrue(OBSERVE_DEFAULT_SPOOL_LIST_QUERY.contains("s.last_used_at_epoch_millis DESC"))
         assertTrue(OBSERVE_DEFAULT_SPOOL_LIST_QUERY.contains("s.normalized_display_name COLLATE NOCASE ASC"))
         assertTrue(OBSERVE_DEFAULT_SPOOL_LIST_QUERY.contains("s.spool_id ASC"))
     }
 
     @Test
-    fun cleanupSurfacesAreGenerationBasedAndCacheClearable() {
+    fun schemaKeepsGenerationCleanupWithoutUnusedPersistenceArtifacts() {
         assertTrue(BambuddyDatabaseSchema.baselineSql.contains(CREATE_INDEX_SPOOLS_DEFAULT_FILTER_SORT))
         assertTrue(CREATE_INDEX_PRINTERS_SNAPSHOT_GENERATION.contains("snapshot_generation"))
         assertTrue(CREATE_INDEX_PRINTER_SLOTS_SNAPSHOT_GENERATION.contains("snapshot_generation"))
         assertTrue(CREATE_INDEX_SPOOLS_SNAPSHOT_GENERATION.contains("snapshot_generation"))
         assertTrue(CREATE_INDEX_ASSIGNMENTS_SNAPSHOT_GENERATION.contains("snapshot_generation"))
+
+        val schema = BambuddyDatabaseSchema.baselineSql.joinToString(separator = "\n")
+        assertTrue("normalized_manufacturer" !in schema)
+        assertTrue("normalized_material" !in schema)
+        assertTrue("normalized_color_name" !in schema)
+        assertTrue("updated_at_epoch_millis" !in schema)
+        assertTrue("created_at_epoch_millis" !in schema)
+        assertTrue("access_code" !in schema)
+        assertTrue("raw_response" !in schema)
+        assertTrue("diagnostic" !in schema)
     }
 
     @Test
-    fun projectionsMapOnlyPersistencePrimitivesToDomain() {
-        val projection = AssignmentProjection(
-            assignmentId = 7,
-            spoolId = 3,
-            printerId = 1,
-            amsId = 255,
-            trayId = 0,
-            configured = true,
-            pendingConfiguration = false
-        )
-
-        val assignment = projection.toDomain()
-
-        assertEquals(assertNotNull(SpoolId.from(3)), assignment.spoolId)
-        assertEquals(assertNotNull(PrinterId.from(1)), assignment.slot.printerId)
-        assertEquals(255, assignment.slot.amsId)
-        assertEquals(0, assignment.slot.trayId)
-        assertEquals(true, assignment.configured)
-        assertEquals(false, assignment.pendingConfiguration)
+    fun persistedSlotKindsRemainExplicit() {
         assertEquals(PersistedSlotKind.External, SlotKind.External.toPersistedSlotKind())
     }
 }
