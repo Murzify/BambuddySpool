@@ -1,6 +1,6 @@
 # BambuddySpool
 
-BambuddySpool is a Kotlin Multiplatform application for Android and iOS. The repository currently contains the verified Stage 1 foundation: shared Compose UI, Decompose navigation, immutable UDF contracts, Metro dependency injection, platform-service boundaries, architecture gates, and CI. Product networking, persistence, NFC operations, and credential storage are intentionally not implemented yet; both platform shells use deterministic no-op services.
+BambuddySpool is a Kotlin Multiplatform application with a shared Compose UI and Android product shell. The iOS target is intentionally limited to a launchable shared-UI mock shell: it supports root navigation but uses explicit fail-closed mocks for unsupported NFC, credential, clipboard, and network services. It does not represent a functional iOS Bambuddy client or perform mutations.
 
 - Repository: [`Murzify/BambuddySpool`](https://github.com/Murzify/BambuddySpool)
 - Android application ID: `com.murzify.bambuddyspool`
@@ -63,9 +63,9 @@ Use `./gradlew spotlessApply` to apply the configured Kotlin and Gradle Kotlin D
 ## Running the shells
 
 - Android: use the Android Studio run configuration or assemble/install `:androidApp:assembleDebug` on an API 23+ device or emulator.
-- iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme on an iOS Simulator.
+- iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme on an iOS Simulator. It renders the shared root and its navigation only; unsupported platform actions remain unavailable and cannot persist credentials or issue network mutations.
 
-The current screen is an architecture bootstrap, not a production Bambuddy client. It switches between the four shared root destinations but does not contact a server, persist data, read/write NFC tags, or accept credentials.
+The iOS shell is a mock-only surface, not a production Bambuddy client. It switches between the four shared root destinations but does not contact a server, persist data, read/write NFC tags, or accept credentials.
 
 ## Test and CI boundaries
 

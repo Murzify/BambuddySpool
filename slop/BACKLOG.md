@@ -224,7 +224,7 @@ Measure monotonic stages for the two-second assignment and one-second cold-launc
 Task DOD
 Ephemeral/test timing is runnable; StrictMode-covered flows are clean; the TECHSPEC degradation table is implemented; release contains no analytics, crash reporting, or persistent diagnostics.
 
-- [ ] [CODE]-[014] Implement the iOS Mock Shell
+- [x] [CODE]-[014] Implement the iOS Mock Shell
 Task Context
 Compile both iOS targets, run shared tests, render the shared root, and provide explicit deterministic mocks for unsupported platform services. Do not create separate Swift product screens or pretend mutations work.
 Task DOD

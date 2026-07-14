@@ -1,5 +1,14 @@
 # Agent Documentation Changelog
 
+## 2026-07-15
+
+- Completed `[CODE]-[014]` with a launchable Swift/Xcode wrapper around the shared Compose root and a dedicated iOS
+  mock platform graph. Root navigation executes in shared Kotlin code; the mock shell has no Swift product screens.
+- iOS-only platform bindings now fail closed for NFC, credential storage, and network creation, return no clipboard
+  success, and keep NFC unavailable. They neither persist credentials nor synthesize inventory, assignments, or
+  mutation results. iOS Simulator tests construct the graph, navigate every shared root destination, and prove the
+  unsupported operations stay unavailable.
+
 ## 2026-07-14
 
 - Completed `[CODE]-[012]` with a shared adaptive and accessible Compose baseline. Compact, medium, and expanded
