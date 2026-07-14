@@ -68,8 +68,8 @@ internal const val SPOOL_RELINK_TAG = "spools-relink-tag"
 @Composable
 fun SpoolsScreen(component: SpoolsComponent, acceptRoot: (RootIntent) -> Unit) {
     val state by component.state.collectAsState()
-    state.selectedSpoolId?.let { selected ->
-        SpoolDetailScreen(component, acceptRoot)
+    state.selectedSpoolId?.let {
+        SpoolDetailScreen(state, component, acceptRoot)
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -160,8 +160,7 @@ private fun SpoolText(spool: SpoolSummaryProjection) = Column {
 }
 
 @Composable
-private fun SpoolDetailScreen(component: SpoolsComponent, acceptRoot: (RootIntent) -> Unit) {
-    val state by component.state.collectAsState()
+private fun SpoolDetailScreen(state: SpoolsState, component: SpoolsComponent, acceptRoot: (RootIntent) -> Unit) {
     val detail = state.detailProjection
     val spool = detail.contentOrNull()
     val availability = detail.availabilityOrNull()

@@ -54,7 +54,7 @@ internal const val PRINTER_AMS_TAG = "printers-ams-read-only"
 fun PrintersScreen(component: PrintersComponent, manualSpoolId: SpoolId?, acceptRoot: (RootIntent) -> Unit) {
     val state by component.state.collectAsState()
     state.selectedPrinterId?.let {
-        PrinterDetailScreen(component, manualSpoolId, acceptRoot)
+        PrinterDetailScreen(state, component, manualSpoolId, acceptRoot)
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,11 +98,11 @@ private fun PrinterList(printers: List<PrinterSummaryProjection>, component: Pri
 
 @Composable
 private fun PrinterDetailScreen(
+    state: PrintersState,
     component: PrintersComponent,
     manualSpoolId: SpoolId?,
     acceptRoot: (RootIntent) -> Unit
 ) {
-    val state by component.state.collectAsState()
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)

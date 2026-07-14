@@ -2,6 +2,14 @@
 
 ## 2026-07-15
 
+- Completed `[CODE]-[018]` with a product-code polish review. Spools and Printers now collect their component
+  `StateFlow` once per rendered screen and pass immutable state into their detail branch, removing redundant detail
+  collectors without changing safe restoration or mutation boundaries.
+- Reviewed Compose recomposition/stable keys, lifecycle cancellation, reducer and flow ownership, resource access,
+  visibility/KDoc, and suppressions. Formatting, Detekt, Android Lint, Android host/iOS Simulator tests, Android
+  assembly, and the repository policy gate passed. Lint dependency advisories remain visible release work for
+  `[SEC]-[005]`; no private configuration or live Bambuddy instance was used.
+
 - Completed `[CODE]-[017]` with a feature security review and evidence in `slop/security/feature-review.md`.
   Fixed concurrent assignment POST and tag-mutation write ownership with process-local mutation guards, retaining
   their application-scoped/no-replay behavior.
