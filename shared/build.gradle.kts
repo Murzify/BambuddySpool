@@ -55,6 +55,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
         }
         named("androidDeviceTest").dependencies {
+            implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.testExt.junit)
             implementation(libs.kotlin.test)

@@ -7,6 +7,7 @@
     <string name="connection_save">Save</string>
     <string name="connection_testing">Testing connection</string>
     <string name="connection_saving">Saving connection</string>
+    <string name="connection_busy">Wait for the current connection operation to finish.</string>
     <string name="connection_test_succeeded">Connection and authentication succeeded.</string>
     <string name="connection_save_succeeded">Connection saved. Initial sync has started.</string>
     <string name="connection_required_fields">Enter a base URL and API token.</string>
@@ -63,6 +64,7 @@
     <string name="printers_empty">No printers are available in the cache.</string>
     <string name="printers_no_slots">No supported slots are available for this printer.</string>
     <string name="printers_mutation_unavailable">Assignment is unavailable until Bambuddy has fresh supported topology.</string>
+    <string name="printers_select_spool_first">Select a spool before choosing a printer slot.</string>
     <string name="printers_unnamed">Printer %1$d</string>
     <string name="printers_back">Back to printers</string>
     <string name="printers_external_slots">External slot</string>
@@ -85,4 +87,6 @@
     <string name="assignment_effect_move_and_assign">Effect: move and assign spool</string>
     <string name="assignment_confirm">Assign spool</string>
     <string name="assignment_cancel">Cancel</string>
+    <string name="assignment_location">%1$s — %2$s</string>
+    <string name="assignment_unnamed_printer">Printer %1$d</string>
 </resources>

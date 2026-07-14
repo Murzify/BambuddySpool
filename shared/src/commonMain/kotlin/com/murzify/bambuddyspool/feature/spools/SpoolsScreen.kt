@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -22,8 +24,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.murzify.bambuddyspool.app.root.RootIntent
+import com.murzify.bambuddyspool.app.ui.AccessibleButton
+import com.murzify.bambuddyspool.app.ui.MinimumInteractiveTarget
 import com.murzify.bambuddyspool.core.projections.CacheAvailability
 import com.murzify.bambuddyspool.core.projections.CacheProjectionState
 import com.murzify.bambuddyspool.core.projections.MutationAvailability
@@ -67,7 +73,11 @@ fun SpoolsScreen(component: SpoolsComponent, acceptRoot: (RootIntent) -> Unit) {
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(Res.string.spools_title), style = MaterialTheme.typography.headlineSmall)
+        Text(
+            stringResource(Res.string.spools_title),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() }
+        )
         OutlinedTextField(
             value = state.query,
             onValueChange = { component.accept(SpoolsIntent.SearchChanged(it)) },
@@ -111,7 +121,7 @@ private fun ToggleFilter(label: String, value: Boolean, changed: (Boolean) -> Un
     verticalAlignment = Alignment.CenterVertically,
     modifier = Modifier.heightIn(min = 48.dp)
 ) {
-    Checkbox(value, changed)
+    Checkbox(value, changed, modifier = MinimumInteractiveTarget)
     Text(label, style = MaterialTheme.typography.labelMedium)
 }
 
@@ -129,7 +139,7 @@ private fun SpoolList(
             items(spools, key = { it.id.value }) { spool ->
                 Button(onClick = {
                     component.accept(SpoolsIntent.OpenDetail(spool.id))
-                }, modifier = Modifier.fillMaxWidth()) {
+                }, modifier = Modifier.fillMaxWidth().then(MinimumInteractiveTarget)) {
                     SpoolText(spool)
                 }
                 HorizontalDivider()
@@ -155,35 +165,47 @@ private fun SpoolDetailScreen(component: SpoolsComponent, acceptRoot: (RootInten
     val detail = state.detailProjection
     val spool = detail.contentOrNull()
     val availability = detail.availabilityOrNull()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AccessibleButton(stringResource(Res.string.spools_back), {
             component.accept(SpoolsIntent.CloseDetail)
-        }) { Text(stringResource(Res.string.spools_back)) }
-        Text(stringResource(Res.string.spools_details), style = MaterialTheme.typography.headlineSmall)
+        })
+        Text(
+            stringResource(Res.string.spools_details),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() }
+        )
         when {
             detail is CacheProjectionState.InitialLoading -> Text(stringResource(Res.string.spools_loading))
             spool == null -> {
                 Text(stringResource(Res.string.spools_deleted_tagged))
-                Button(onClick = {
+                AccessibleButton(stringResource(Res.string.spools_relink_tag), {
                     acceptRoot(RootIntent.StartTagLink(null))
-                }, modifier = Modifier.testTag(SPOOL_RELINK_TAG)) {
-                    Text(stringResource(Res.string.spools_relink_tag))
-                }
+                }, modifier = Modifier.testTag(SPOOL_RELINK_TAG))
             }
             else -> {
                 SpoolText(spool)
                 val enabled = availability?.mutation is MutationAvailability.Available
-                if (!enabled) Text(stringResource(Res.string.spools_mutation_unavailable))
-                Button(onClick = {
-                    acceptRoot(RootIntent.StartManualAssignment(spool.id.value))
-                }, enabled = enabled, modifier = Modifier.testTag(SPOOL_ASSIGN_TAG)) {
-                    Text(stringResource(Res.string.spools_assign))
-                }
-                Button(onClick = {
-                    acceptRoot(RootIntent.StartTagLink(spool.id.value))
-                }, enabled = enabled, modifier = Modifier.testTag(SPOOL_LINK_TAG)) {
-                    Text(stringResource(Res.string.spools_link_tag))
-                }
+                AccessibleButton(
+                    text = stringResource(Res.string.spools_assign),
+                    onClick = {
+                        acceptRoot(RootIntent.StartManualAssignment(spool.id.value))
+                    },
+                    enabled = enabled,
+                    disabledReason = stringResource(Res.string.spools_mutation_unavailable),
+                    modifier = Modifier.testTag(SPOOL_ASSIGN_TAG)
+                )
+                AccessibleButton(
+                    text = stringResource(Res.string.spools_link_tag),
+                    onClick = {
+                        acceptRoot(RootIntent.StartTagLink(spool.id.value))
+                    },
+                    enabled = enabled,
+                    disabledReason = stringResource(Res.string.spools_mutation_unavailable),
+                    modifier = Modifier.testTag(SPOOL_LINK_TAG)
+                )
             }
         }
     }

@@ -18,15 +18,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.murzify.bambuddyspool.app.ui.AccessibleButton
 import com.murzify.bambuddyspool.core.settings.ConnectionValidationFailureReason
 import com.murzify.bambuddyspool.shared.resources.Res
 import com.murzify.bambuddyspool.shared.resources.connection_api_token
 import com.murzify.bambuddyspool.shared.resources.connection_auth_rejected
 import com.murzify.bambuddyspool.shared.resources.connection_base_url
+import com.murzify.bambuddyspool.shared.resources.connection_busy
 import com.murzify.bambuddyspool.shared.resources.connection_cancel
 import com.murzify.bambuddyspool.shared.resources.connection_confirm
 import com.murzify.bambuddyspool.shared.resources.connection_http_warning
@@ -80,28 +84,32 @@ fun ConnectionFormScreen(component: ConnectionFormComponent, modifier: Modifier 
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             singleLine = true
         )
-        Button(onClick = { component.test(token) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                stringResource(
-                    if (state.operation == ConnectionFormOperation.Testing) {
-                        Res.string.connection_testing
-                    } else {
-                        Res.string.connection_test
-                    }
-                )
-            )
-        }
-        Button(onClick = { component.save(token) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                stringResource(
-                    if (state.operation == ConnectionFormOperation.Saving) {
-                        Res.string.connection_saving
-                    } else {
-                        Res.string.connection_save
-                    }
-                )
-            )
-        }
+        AccessibleButton(
+            text = stringResource(
+                if (state.operation == ConnectionFormOperation.Testing) {
+                    Res.string.connection_testing
+                } else {
+                    Res.string.connection_test
+                }
+            ),
+            onClick = { component.test(token) },
+            enabled = !busy,
+            disabledReason = stringResource(Res.string.connection_busy),
+            modifier = Modifier.fillMaxWidth()
+        )
+        AccessibleButton(
+            text = stringResource(
+                if (state.operation == ConnectionFormOperation.Saving) {
+                    Res.string.connection_saving
+                } else {
+                    Res.string.connection_save
+                }
+            ),
+            onClick = { component.save(token) },
+            enabled = !busy,
+            disabledReason = stringResource(Res.string.connection_busy),
+            modifier = Modifier.fillMaxWidth()
+        )
         state.message?.let { Text(connectionMessage(it)) }
     }
 
@@ -116,7 +124,8 @@ fun ConnectionFormScreen(component: ConnectionFormComponent, modifier: Modifier 
                         } else {
                             Res.string.connection_http_warning_title
                         }
-                    )
+                    ),
+                    modifier = Modifier.semantics { heading() }
                 )
             },
             text = {

@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -16,8 +18,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.murzify.bambuddyspool.app.root.RootIntent
+import com.murzify.bambuddyspool.app.ui.AccessibleButton
+import com.murzify.bambuddyspool.app.ui.MinimumInteractiveTarget
 import com.murzify.bambuddyspool.core.domain.SlotKind
 import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.projections.CacheAvailability
@@ -35,6 +41,7 @@ import com.murzify.bambuddyspool.shared.resources.printers_loading
 import com.murzify.bambuddyspool.shared.resources.printers_mutation_unavailable
 import com.murzify.bambuddyspool.shared.resources.printers_no_slots
 import com.murzify.bambuddyspool.shared.resources.printers_refreshing
+import com.murzify.bambuddyspool.shared.resources.printers_select_spool_first
 import com.murzify.bambuddyspool.shared.resources.printers_slots
 import com.murzify.bambuddyspool.shared.resources.printers_title
 import com.murzify.bambuddyspool.shared.resources.printers_unnamed
@@ -51,7 +58,11 @@ fun PrintersScreen(component: PrintersComponent, manualSpoolId: SpoolId?, accept
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(Res.string.printers_title), style = MaterialTheme.typography.headlineSmall)
+        Text(
+            stringResource(Res.string.printers_title),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() }
+        )
         when (val projection = state.printers) {
             CacheProjectionState.InitialLoading -> Text(stringResource(Res.string.printers_loading))
             is CacheProjectionState.FatalErrorWithoutCache -> Text(
@@ -75,7 +86,7 @@ private fun PrinterList(printers: List<PrinterSummaryProjection>, component: Pri
             items(printers, key = { it.id.value }) { printer ->
                 Button(
                     onClick = { component.accept(PrintersIntent.OpenPrinter(printer.id)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().then(MinimumInteractiveTarget)
                 ) {
                     Text(printer.name ?: stringResource(Res.string.printers_unnamed, printer.id.value))
                 }
@@ -92,11 +103,18 @@ private fun PrinterDetailScreen(
     acceptRoot: (RootIntent) -> Unit
 ) {
     val state by component.state.collectAsState()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = { component.accept(PrintersIntent.ClosePrinter) }) {
-            Text(stringResource(Res.string.printers_back))
-        }
-        Text(stringResource(Res.string.printers_slots), style = MaterialTheme.typography.headlineSmall)
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AccessibleButton(stringResource(Res.string.printers_back), {
+            component.accept(PrintersIntent.ClosePrinter)
+        })
+        Text(
+            stringResource(Res.string.printers_slots),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() }
+        )
         when (val projection = state.slots) {
             CacheProjectionState.InitialLoading -> Text(stringResource(Res.string.printers_loading))
             is CacheProjectionState.FatalErrorWithoutCache -> Text(
@@ -141,16 +159,22 @@ private fun Slots(
         )
         slot.assignedSpool?.let { Text(it.name ?: it.id.value.toString()) }
         if (isExternal) {
-            Button(
+            AccessibleButton(
+                text = stringResource(Res.string.printers_assign_here),
                 enabled = canAssign,
+                disabledReason = if (manualSpoolId == null) {
+                    stringResource(Res.string.printers_select_spool_first)
+                } else {
+                    stringResource(Res.string.printers_mutation_unavailable)
+                },
                 onClick = {
                     val generation = (availability.mutation as? MutationAvailability.Available)?.snapshotGeneration
-                        ?: return@Button
-                    val spool = manualSpoolId ?: return@Button
+                        ?: return@AccessibleButton
+                    val spool = manualSpoolId ?: return@AccessibleButton
                     acceptRoot(RootIntent.CreateManualAssignment(spool, slot.slot, generation))
                 },
                 modifier = Modifier.testTag(PRINTER_EXTERNAL_ASSIGN_TAG)
-            ) { Text(stringResource(Res.string.printers_assign_here)) }
+            )
         } else {
             Text(stringResource(Res.string.printers_ams_read_only), modifier = Modifier.testTag(PRINTER_AMS_TAG))
         }

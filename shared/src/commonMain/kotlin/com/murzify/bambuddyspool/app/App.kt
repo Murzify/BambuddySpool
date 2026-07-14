@@ -2,6 +2,7 @@
 
 package com.murzify.bambuddyspool.app
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -15,10 +16,15 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.app.root.HomeConnectionState
@@ -26,6 +32,10 @@ import com.murzify.bambuddyspool.app.root.HomeNfcState
 import com.murzify.bambuddyspool.app.root.RootComponent
 import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.app.root.RootState
+import com.murzify.bambuddyspool.app.ui.FocusedStatusTitle
+import com.murzify.bambuddyspool.app.ui.MinimumInteractiveTarget
+import com.murzify.bambuddyspool.app.ui.UiWidthClass
+import com.murzify.bambuddyspool.app.ui.processingAnnouncement
 import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmationDialog
 import com.murzify.bambuddyspool.feature.printers.PrintersScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
@@ -54,17 +64,19 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun App(root: RootComponent) {
     val state by root.state.collectAsState()
-    MaterialTheme {
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            if (maxWidth < 600.dp) {
+            val widthClass = UiWidthClass(maxWidth)
+            val contentPadding = if (widthClass == UiWidthClass.Expanded) 48.dp else 24.dp
+            if (widthClass == UiWidthClass.Compact) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    RootContent(state, root, Modifier.weight(1f))
+                    RootContent(state, root, Modifier.weight(1f), contentPadding)
                     BottomNavigation(state.destination, root::accept)
                 }
             } else {
                 Row(modifier = Modifier.fillMaxSize()) {
                     RailNavigation(state.destination, root::accept)
-                    RootContent(state, root, Modifier.weight(1f))
+                    RootContent(state, root, Modifier.weight(1f), contentPadding)
                 }
             }
         }
@@ -78,7 +90,8 @@ private fun BottomNavigation(selected: RootDestination, accept: (RootIntent) -> 
             selected = selected == destination,
             onClick = { accept(RootIntent.Select(destination)) },
             icon = {},
-            label = { Text(stringResource(destination.label())) }
+            label = { Text(stringResource(destination.label())) },
+            modifier = MinimumInteractiveTarget.semantics { role = Role.Tab }
         )
     }
 }
@@ -90,21 +103,39 @@ private fun RailNavigation(selected: RootDestination, accept: (RootIntent) -> Un
             selected = selected == destination,
             onClick = { accept(RootIntent.Select(destination)) },
             icon = {},
-            label = { Text(stringResource(destination.label())) }
+            label = { Text(stringResource(destination.label())) },
+            modifier = MinimumInteractiveTarget.semantics { role = Role.Tab }
         )
     }
 }
 
 @Composable
-private fun RootContent(state: RootState, root: RootComponent, modifier: Modifier) = Surface(modifier.fillMaxSize()) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+private fun RootContent(
+    state: RootState,
+    root: RootComponent,
+    modifier: Modifier,
+    contentPadding: androidx.compose.ui.unit.Dp
+) = Surface(modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(contentPadding),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         when (state.destination) {
             RootDestination.Home -> HomeScreen(state)
             RootDestination.Spools -> SpoolsScreen(root.spoolsComponent, root::accept)
             RootDestination.Printers -> PrintersScreen(root.printersComponent, state.pendingManualSpoolId, root::accept)
             RootDestination.Settings -> Text(stringResource(Res.string.placeholder_settings))
         }
-        state.transientWorkflow?.let { Text(stringResource(it.label())) }
+        state.transientWorkflow?.let { workflow ->
+            val label = stringResource(workflow.label())
+            when (workflow) {
+                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Processing ->
+                    Text(label, modifier = Modifier.processingAnnouncement())
+                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Success,
+                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Error -> FocusedStatusTitle(label)
+                else -> Text(label)
+            }
+        }
         state.assignmentConfirmation?.let { confirmation ->
             CombinedAssignmentConfirmationDialog(
                 confirmation = confirmation,

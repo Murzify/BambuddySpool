@@ -212,7 +212,7 @@ Fresh-validate selected spools online. Empty tags can link; nonempty different/u
 Task DOD
 The shared state machine covers every read and mutation outcome; canonical reread is the sole success boundary; authorization is not restored; wrong tags are never written; lost-tag and deleted-spool scenarios are tested.
 
-- [ ] [CODE]-[012] Implement Adaptive, Accessible, Resource-Based UI
+- [x] [CODE]-[012] Implement Adaptive, Accessible, Resource-Based UI
 Task Context
 Keep all product UI in common Compose. Support compact/medium/expanded widths, unlocked orientation, system themes, English resources, semantic roles/labels/state, 48dp targets, Processing live region, Success/Error focus, disabled reasons, large fonts, scrolling, and non-gesture alternatives.
 Task DOD

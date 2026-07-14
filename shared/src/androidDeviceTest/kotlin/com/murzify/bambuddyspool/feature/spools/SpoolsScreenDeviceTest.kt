@@ -1,6 +1,10 @@
 package com.murzify.bambuddyspool.feature.spools
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -9,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
@@ -51,7 +56,31 @@ class SpoolsScreenDeviceTest {
     }
 
     @Test
-    fun freshActionsAreEnabledAndStaleActionsAreDisabled() = runComposeUiTest {
+    fun filtersRemainAvailableAtExpandedWidthInDarkThemeWithLargeFont() = runComposeUiTest {
+        val spool = SpoolSummaryProjection(
+            requireNotNull(SpoolId.from(8)),
+            "Carbon", null, "PLA", "Black", 450, null, null, null
+        )
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                MaterialTheme(colorScheme = darkColorScheme()) {
+                    androidx.compose.foundation.layout.BoxWithConstraints(
+                        modifier = androidx.compose.ui.Modifier.width(840.dp)
+                    ) {
+                        SpoolsScreen(component(spool, available = true), {})
+                    }
+                }
+            }
+        }
+
+        onNodeWithText("Spools").assertIsDisplayed()
+        onNodeWithText("Include inactive").assertIsDisplayed()
+        onNodeWithText("Include archived").assertIsDisplayed()
+        onNodeWithText("Include empty").assertIsDisplayed()
+    }
+
+    @Test
+    fun freshActionsAreEnabled() = runComposeUiTest {
         val spool =
             SpoolSummaryProjection(
                 requireNotNull(
@@ -66,7 +95,14 @@ class SpoolsScreenDeviceTest {
         onNodeWithTag(SPOOL_ASSIGN_TAG).assertIsEnabled().performClick()
         onNodeWithTag(SPOOL_LINK_TAG).assertIsEnabled().performClick()
         assertEquals(2, intents.size)
+    }
 
+    @Test
+    fun staleActionsAreDisabledWithAnAccessibleReason() = runComposeUiTest {
+        val spool = SpoolSummaryProjection(
+            requireNotNull(SpoolId.from(7)),
+            "Carbon", null, "PLA", "Black", 450, null, null, null
+        )
         val stale = component(spool, available = false)
         stale.accept(SpoolsIntent.OpenDetail(spool.id))
         setContent { SpoolsScreen(stale, {}) }

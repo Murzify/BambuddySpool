@@ -2,6 +2,15 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[012]` with a shared adaptive and accessible Compose baseline. Compact, medium, and expanded
+  widths now follow the approved breakpoints; compact uses bottom navigation while wider layouts use the navigation
+  rail. The root follows system light/dark theme, critical long-form content scrolls at large font scales, and action
+  targets use a shared 48 dp minimum.
+- Added resource-backed fallback text, semantic headings and state descriptions, visible disabled-action reasons,
+  Processing live-region announcements, and initial Success/Error focus. Confirmation keeps its specified source
+  order. Targeted API 36 Android device tests cover compact and expanded/dark/2x-font rendering; the debug APK was
+  also installed and visually checked through Android CLI.
+
 - Completed `[CODE]-[011]` with a common transient tag-mutation state machine. Empty tags can be linked after a
   fresh GET-only online validation; different, unknown, and malformed payloads require an explicit overwrite
   confirmation; an identical canonical payload is `Already linked`. Clear also requires confirmation, uses an empty
