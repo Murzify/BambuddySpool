@@ -6,8 +6,13 @@ import kotlinx.coroutines.CoroutineDispatcher
 /** Device-bound storage boundary for the single Bambuddy API token. */
 interface SecureStorage : SecureTokenStore
 
-/** Platform-neutral result of one NFC observation. */
-data class NfcObservation(val fingerprint: String, val payload: String?)
+/**
+ * Platform-neutral result of one NFC observation.
+ *
+ * [monotonicTimestampMillis] is supplied by the platform monotonic clock (never wall time). It exists solely for
+ * in-memory duplicate suppression and is deliberately not persisted or restored.
+ */
+data class NfcObservation(val fingerprint: String, val payload: String?, val monotonicTimestampMillis: Long)
 
 /** NFC availability distinguished without exposing platform framework types to shared presentation. */
 enum class NfcAvailability {

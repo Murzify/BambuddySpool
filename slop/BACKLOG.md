@@ -194,7 +194,7 @@ Register only the canonical URI filter with `singleTop`; route initial and `onNe
 Task DOD
 Cold and active scans work without Activity accumulation; unrelated URIs are ignored; first render is not sync-blocked; API 23, disabled/missing NFC, manifest, and device tests pass.
 
-- [ ] [CODE]-[009] Implement NFC Scan Coordination
+- [x] [CODE]-[009] Implement NFC Scan Coordination
 Task Context
 Serialize one NFC session. Suppress accepted duplicate fingerprints within one second. Before POST, a new scan replaces the workflow; after POST, finish verification and retain only the newest pending scan; a Success scan immediately returns to Processing. Use a monotonic clock.
 Task DOD

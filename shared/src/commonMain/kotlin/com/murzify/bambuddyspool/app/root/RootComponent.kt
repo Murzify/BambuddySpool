@@ -15,6 +15,11 @@ import com.murzify.bambuddyspool.core.domain.AssignmentSource
 import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.nfc.NfcScanCoordinationEffect
+import com.murzify.bambuddyspool.core.nfc.NfcScanCoordinationEvent
+import com.murzify.bambuddyspool.core.nfc.NfcScanCoordinationState
+import com.murzify.bambuddyspool.core.nfc.NfcScanCoordinator
+import com.murzify.bambuddyspool.core.nfc.NfcSessionId
 import com.murzify.bambuddyspool.core.platform.NfcAvailability
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
@@ -66,6 +71,8 @@ data class RootState(
     val transientWorkflow: RootTransientWorkflow? = null,
     /** The accepted scan is transient input for NFC coordination and is never restored or replayed. */
     val pendingNfcObservation: NfcObservation? = null,
+    /** Opaque coordinator identity for the current process-local NFC workflow; it is never saved. */
+    val activeNfcSessionId: NfcSessionId? = null,
     val pendingManualSpoolId: SpoolId? = null,
     val assignmentIntent: AssignmentIntent? = null,
     val assignmentConfirmation: CombinedAssignmentConfirmation? = null
@@ -87,7 +94,7 @@ sealed interface RootIntent {
     data class StartAssignment(val intent: AssignmentIntent) : RootIntent
 
     /** Platform-neutral NFC entry hand-off; Android objects must never cross this boundary. */
-    data class BeginNfcScan(val observation: NfcObservation) : RootIntent
+    data class BeginNfcScan(val observation: NfcObservation, val sessionId: NfcSessionId? = null) : RootIntent
 
     /** Fresh server context only; this transient dialog is never restorable or an authorization by itself. */
     data class ShowAssignmentConfirmation(val context: AssignmentContext) : RootIntent
@@ -138,6 +145,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                     pendingManualSpoolId = requireNotNull(SpoolId.from(intent.spoolId)),
                     transientWorkflow = null,
                     pendingNfcObservation = null,
+                    activeNfcSessionId = null,
                     assignmentIntent = null,
                     assignmentConfirmation = null
                 ),
@@ -150,6 +158,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                 pendingManualSpoolId = null,
                 transientWorkflow = RootTransientWorkflow.Processing,
                 pendingNfcObservation = null,
+                activeNfcSessionId = null,
                 assignmentIntent = AssignmentIntent(
                     spoolId = intent.spoolId,
                     slot = intent.slot,
@@ -164,6 +173,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 pendingManualSpoolId = null,
                 transientWorkflow = RootTransientWorkflow.Processing,
+                activeNfcSessionId = null,
                 assignmentIntent = intent.intent,
                 assignmentConfirmation = null
             )
@@ -176,6 +186,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                 state.copy(
                     transientWorkflow = RootTransientWorkflow.Processing,
                     pendingNfcObservation = intent.observation,
+                    activeNfcSessionId = intent.sessionId,
                     pendingManualSpoolId = null,
                     assignmentIntent = null,
                     assignmentConfirmation = null
@@ -198,13 +209,18 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 transientWorkflow = null,
                 pendingNfcObservation = null,
+                activeNfcSessionId = null,
                 assignmentIntent = null,
                 assignmentConfirmation = null
             )
         )
 
         is RootIntent.StartTagLink -> Reduction(
-            state.copy(transientWorkflow = RootTransientWorkflow.TagMutation, pendingNfcObservation = null)
+            state.copy(
+                transientWorkflow = RootTransientWorkflow.TagMutation,
+                pendingNfcObservation = null,
+                activeNfcSessionId = null
+            )
         )
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
@@ -212,6 +228,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 transientWorkflow = null,
                 pendingNfcObservation = null,
+                activeNfcSessionId = null,
                 assignmentIntent = null,
                 assignmentConfirmation = null
             )
@@ -288,6 +305,9 @@ class RootComponent(
     )
     override val state: StateFlow<RootState> = mutableState.asStateFlow()
 
+    /** NFC coordination is process-local; state keeper never sees accepted scans or mutation boundaries. */
+    private var nfcCoordination = NfcScanCoordinationState()
+
     private val childStack = childStack(
         source = navigation,
         serializer = RootConfig.serializer(),
@@ -308,6 +328,50 @@ class RootComponent(
     }
 
     override fun accept(intent: RootIntent) {
+        if (intent is RootIntent.BeginNfcScan) {
+            acceptNfcObservation(intent.observation)
+            return
+        }
+        val reduction = RootReducer.reduce(mutableState.value, intent)
+        mutableState.value = reduction.state
+        reduction.effects.forEach(::handle)
+    }
+
+    /** Future NFC assignment orchestration must call this immediately before its first POST. */
+    fun onNfcPostStarted(sessionId: NfcSessionId) {
+        applyNfcCoordination(NfcScanCoordinationEvent.PostStarted(sessionId))
+    }
+
+    /** Finishes a matching NFC operation and starts at most the one newest scan retained after its POST boundary. */
+    fun onNfcWorkflowCompleted(sessionId: NfcSessionId, succeeded: Boolean) {
+        val effect = applyNfcCoordination(NfcScanCoordinationEvent.Completed(sessionId, succeeded))
+        if (effect !is NfcScanCoordinationEffect.Start && effect !is NfcScanCoordinationEffect.IgnoredStaleCallback) {
+            applyRoot(
+                RootIntent.ShowTransient(if (succeeded) RootTransientWorkflow.Success else RootTransientWorkflow.Error)
+            )
+        }
+    }
+
+    private fun acceptNfcObservation(observation: NfcObservation) {
+        applyNfcCoordination(NfcScanCoordinationEvent.Scan(observation))
+    }
+
+    private fun applyNfcCoordination(event: NfcScanCoordinationEvent): NfcScanCoordinationEffect? {
+        val reduction = NfcScanCoordinator.reduce(nfcCoordination, event)
+        nfcCoordination = reduction.state
+        when (val effect = reduction.effect) {
+            is NfcScanCoordinationEffect.Start -> applyRoot(
+                RootIntent.BeginNfcScan(effect.session.observation, effect.session.id)
+            )
+            is NfcScanCoordinationEffect.ReplacedBeforePost -> applyRoot(
+                RootIntent.BeginNfcScan(effect.started.observation, effect.started.id)
+            )
+            else -> Unit
+        }
+        return reduction.effect
+    }
+
+    private fun applyRoot(intent: RootIntent) {
         val reduction = RootReducer.reduce(mutableState.value, intent)
         mutableState.value = reduction.state
         reduction.effects.forEach(::handle)

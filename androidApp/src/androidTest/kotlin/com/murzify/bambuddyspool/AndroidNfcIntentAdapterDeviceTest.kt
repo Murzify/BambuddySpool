@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AndroidNfcIntentAdapterDeviceTest {
-    private val adapter = AndroidNfcIntentAdapter { "a1b2" }
+    private val adapter = AndroidNfcIntentAdapter({ "a1b2" }, { 123L })
 
     @Test
     fun canonicalNdefDiscoveryStartsPlatformNeutralProcessingInput() {
@@ -24,6 +24,7 @@ class AndroidNfcIntentAdapterDeviceTest {
 
         assertEquals("a1b2", observation?.fingerprint)
         assertEquals("bambuddy-spool://spool/42", observation?.payload)
+        assertEquals(123L, observation?.monotonicTimestampMillis)
     }
 
     @Test

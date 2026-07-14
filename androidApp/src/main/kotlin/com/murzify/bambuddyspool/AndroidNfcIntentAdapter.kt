@@ -3,6 +3,7 @@ package com.murzify.bambuddyspool
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.os.SystemClock
 import com.murzify.bambuddyspool.core.nfc.CanonicalNfcPayloadCodec
 import com.murzify.bambuddyspool.core.nfc.NfcPayloadParseResult
 import com.murzify.bambuddyspool.core.platform.NfcObservation
@@ -14,7 +15,8 @@ import com.murzify.bambuddyspool.core.platform.NfcObservation
  * physical-tag fingerprint and must not accidentally coalesce different tags.
  */
 internal class AndroidNfcIntentAdapter(
-    private val fingerprintFromIntent: (Intent) -> String? = AndroidNfcIntentAdapter::tagFingerprint
+    private val fingerprintFromIntent: (Intent) -> String? = AndroidNfcIntentAdapter::tagFingerprint,
+    private val monotonicClockMillis: () -> Long = SystemClock::elapsedRealtime
 ) {
     fun read(intent: Intent?): NfcObservation? = intent
         ?.takeIf { it.action == NfcAdapter.ACTION_NDEF_DISCOVERED }
@@ -24,7 +26,11 @@ internal class AndroidNfcIntentAdapter(
         ?.takeIf { parsed -> parsed.canonicalUri == intent.dataString }
         ?.let { parsed ->
             fingerprintFromIntent(intent)?.let { fingerprint ->
-                NfcObservation(fingerprint = fingerprint, payload = parsed.canonicalUri)
+                NfcObservation(
+                    fingerprint = fingerprint,
+                    payload = parsed.canonicalUri,
+                    monotonicTimestampMillis = monotonicClockMillis()
+                )
             }
         }
 

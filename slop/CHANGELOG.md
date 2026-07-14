@@ -2,6 +2,17 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[009]` with a shared, pure NFC session coordinator. Accepted observations carry only a
+  physical fingerprint, canonical payload, and platform monotonic timestamp; same-fingerprint scans inside one
+  second are suppressed without wall-clock use.
+- Before the first POST, a new scan replaces the in-memory workflow; after the POST boundary, exactly one newest
+  scan is retained until the active mutation/verification finishes. Success is replaced immediately by Processing.
+  The coordinator uses opaque transient session identities, ignores stale callbacks, and never serializes session,
+  pending-scan, or mutation state.
+- Added deterministic race coverage for suppression, pre-POST replacement, post-POST latest-only capacity, stale
+  callbacks, and immediate Success replacement. Android supplies `elapsedRealtime()` at the intent boundary; no
+  Android NFC object crosses into common code.
+
 - Completed `[CODE]-[008]` with a thin Android-only canonical NDEF URI entry adapter. The manifest declares an
   optional NFC feature, one `bambuddy-spool://spool/<id>` NDEF-discovery filter, and `singleTop`; cold and
   `onNewIntent` scans enter the existing Activity rather than accumulating Activities.
