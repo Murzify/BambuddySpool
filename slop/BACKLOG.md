@@ -158,7 +158,7 @@ Create Decompose Home/Spools/Printers/Settings roots with independent child stac
 Task DOD
 Android/iOS navigation works without Activity stacking; safe state survives recreation; Home remains minimal; online/offline/NFC states render; navigation arguments contain no Android type.
 
-- [ ] [CODE]-[003] Implement Spools and Spool Details
+- [x] [CODE]-[003] Implement Spools and Spool Details
 Task Context
 Implement default and extended filters, 150ms cancellable search, specified sorting, accessible metadata/color display, remaining amount, assignment, tag actions, and manual assignment. Do not edit spool metadata. A deleted tagged spool produces a precise relink option.
 Task DOD

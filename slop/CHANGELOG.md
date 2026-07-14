@@ -2,6 +2,16 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[003]` with a shared resource-backed Spools browser and details surface, safe restoration of
+  query/filter/detail state, Room-projection search integration, and the indexed 100-item lazy page suitable for
+  large inventories.
+- Added default active/nonarchived/nonempty browsing with explicit inactive, archived, and empty extensions;
+  the existing 150ms cancellable Room/FTS search pipeline remains the single search implementation.
+- Spool rows/details show independent text metadata, color name, remaining amount, and assignment state without
+  relying on color alone. Cached content stays visible during refresh/failure while assignment and tag-link actions
+  are disabled unless the projection grants fresh mutation availability.
+- Added transient manual-assignment and NFC-tag-link entry intents, plus a precise deleted-spool relink path. Those
+  intents deliberately retain no operation authorization, NFC session, or mutation state across recreation.
 - Completed `[CODE]-[002]` with a shared Decompose/UDF root for Home, Spools, Printers, and Settings, responsive
   bottom navigation below 600 dp and a navigation rail at wider widths, plus explicit transient root workflow state.
 - Added independent, safely restorable Decompose child histories for every primary destination. Credentials,

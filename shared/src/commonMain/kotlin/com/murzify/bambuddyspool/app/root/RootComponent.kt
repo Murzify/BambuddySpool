@@ -11,6 +11,7 @@ import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
 import com.murzify.bambuddyspool.core.platform.NfcService
+import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +59,8 @@ sealed interface RootIntent {
     data class Select(val destination: RootDestination) : RootIntent
     data class OpenDetail(val destination: RootDestination, val id: Long) : RootIntent
     data class UpdateHomeStatus(val connectionState: HomeConnectionState, val nfcState: HomeNfcState) : RootIntent
+    data class StartManualAssignment(val spoolId: Long) : RootIntent
+    data class StartTagLink(val spoolId: Long?) : RootIntent
 
     data class ShowTransient(val workflow: RootTransientWorkflow) : RootIntent
     data object DismissTransient : RootIntent
@@ -92,6 +95,13 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
         is RootIntent.UpdateHomeStatus -> Reduction(
             state.copy(connectionState = intent.connectionState, nfcState = intent.nfcState)
         )
+
+        is RootIntent.StartManualAssignment -> {
+            require(intent.spoolId > 0) { "Spool identifiers must be positive." }
+            Reduction(state.copy(transientWorkflow = RootTransientWorkflow.Processing))
+        }
+
+        is RootIntent.StartTagLink -> Reduction(state.copy(transientWorkflow = RootTransientWorkflow.TagMutation))
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
         RootIntent.DismissTransient -> Reduction(state.copy(transientWorkflow = null))
@@ -148,6 +158,8 @@ private data class RootChild(val component: DestinationStackComponent)
 class RootComponent(componentContext: ComponentContext, nfcService: NfcService) :
     ComponentContext by componentContext,
     UdfComponent<RootState, RootIntent> {
+    /** The shared browser owns safe search/filter/detail restoration for the Spools destination. */
+    val spoolsComponent = SpoolsComponent(componentContext)
     private val navigation = StackNavigation<RootConfig>()
     private val destinationComponents = mutableMapOf<RootDestination, DestinationStackComponent>()
     private val restored = stateKeeper.consume("root-navigation", RestoredRootState.serializer())
