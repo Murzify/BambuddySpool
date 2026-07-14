@@ -2,6 +2,8 @@
 
 ## 2026-07-14
 
+- Added ADR-011 for durable fail-closed connection replacement and recovery across settings, credentials, cache,
+  and initial-sync scheduling.
 - Completed `[CODE]-[001]` with one resource-backed shared URL/token/Test/Save form for Setup and Settings. The
   token is kept only in unsaved Compose memory and is converted directly to the non-printing secret boundary;
   reducer, navigation, and saved state contain only safe form metadata.

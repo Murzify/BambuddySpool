@@ -79,6 +79,6 @@ None.
 
 ## ADR Links
 
-No ADR was required. This task implements the existing ADR-003 server-authoritative snapshot and the connection
-replacement requirements in TECHSPEC sections 8.7, 8.8, 13.1-13.5, and 14.8-14.9 without changing an architecture
-invariant, security decision, persistence model, or public API contract.
+ADR-011 — Durable fail-closed connection replacement (`slop/ADR/ADR-011-durable-connection-replacement.md`).
+It defines the required durable pending-operation/recovery boundary across DataStore, secure-token storage, Room,
+and initial-sync scheduling.
