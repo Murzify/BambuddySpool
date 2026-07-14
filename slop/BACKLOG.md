@@ -188,7 +188,7 @@ Retry only retryable transport/5xx errors at 500ms, 1s, and 2s, maximum four ide
 Task DOD
 Virtual-time tests prove calls/delays; duplicate slot state and HTTP-only success never pass; user Retry starts a fresh cycle; configured/pending outcomes and isolated haptic/clipboard failures render correctly.
 
-- [ ] [CODE]-[008] Implement Android NFC Entry and Read Adapter
+- [x] [CODE]-[008] Implement Android NFC Entry and Read Adapter
 Task Context
 Register only the canonical URI filter with `singleTop`; route initial and `onNewIntent` scans through a thin adapter. Render Processing within one second before full bootstrap. Keep devices without/with-disabled NFC usable and keep Android Intent/Tag/NdefMessage out of common code.
 Task DOD

@@ -10,23 +10,40 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.murzify.bambuddyspool.app.App
 import com.murzify.bambuddyspool.app.bootstrap.createRootGraph
+import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.core.platform.mockPlatformServices
 
 /** Thin Android launcher that owns lifecycle wiring and renders the shared root. */
 class MainActivity : ComponentActivity() {
+    private val nfcIntentAdapter = AndroidNfcIntentAdapter()
     private val root by lazy {
         createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = mockPlatformServices()
+            platformServices = mockPlatformServices().copy(nfc = AndroidNfcService(applicationContext))
         ).rootComponent
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        // Parse the cold-launch scan before graph construction and render Processing without waiting for bootstrap IO.
+        routeNfcIntent(intent)
 
         setContent {
             App(root)
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        routeNfcIntent(intent)
+    }
+
+    private fun routeNfcIntent(intent: android.content.Intent?) {
+        nfcIntentAdapter.read(intent)?.let { observation ->
+            root.accept(RootIntent.BeginNfcScan(observation))
         }
     }
 }

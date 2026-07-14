@@ -2,6 +2,17 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[008]` with a thin Android-only canonical NDEF URI entry adapter. The manifest declares an
+  optional NFC feature, one `bambuddy-spool://spool/<id>` NDEF-discovery filter, and `singleTop`; cold and
+  `onNewIntent` scans enter the existing Activity rather than accumulating Activities.
+- The launcher parses the scan before constructing the shared graph and immediately renders transient Processing.
+  Android `Intent`, `Tag`, and NFC-adapter details remain in `androidApp`; shared code receives only a bounded
+  platform-neutral fingerprint and canonical URI, which are never restored or replayed. Missing and disabled NFC
+  remain distinct shared Home states, preserving viewing and manual-assignment paths.
+- Added Android device coverage for canonical filtering, noncanonical/unrelated URI rejection, and manifest
+  resolution/launch mode. Verified the debug APK and navigation UI on an API 36 emulator; the Android minSdk remains
+  API 23, with no API-23-incompatible platform calls introduced.
+
 - Completed `[CODE]-[007]` with strict, virtual-time-covered assignment POST retries and exact verification. The
   orchestrator sends at most four identical POSTs at the specified 500 ms, 1 s, and 2 s retry boundaries, only for
   retryable transport/5xx failures, without a pre-retry GET.

@@ -15,6 +15,8 @@ import com.murzify.bambuddyspool.core.domain.AssignmentSource
 import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.platform.NfcAvailability
+import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
@@ -62,6 +64,8 @@ data class RootState(
     val connectionState: HomeConnectionState = HomeConnectionState.NotConfigured,
     val nfcState: HomeNfcState = HomeNfcState.Unavailable,
     val transientWorkflow: RootTransientWorkflow? = null,
+    /** The accepted scan is transient input for NFC coordination and is never restored or replayed. */
+    val pendingNfcObservation: NfcObservation? = null,
     val pendingManualSpoolId: SpoolId? = null,
     val assignmentIntent: AssignmentIntent? = null,
     val assignmentConfirmation: CombinedAssignmentConfirmation? = null
@@ -82,6 +86,9 @@ sealed interface RootIntent {
     /** Shared hand-off used by manual and future NFC resolution; it must stay transient. */
     data class StartAssignment(val intent: AssignmentIntent) : RootIntent
 
+    /** Platform-neutral NFC entry hand-off; Android objects must never cross this boundary. */
+    data class BeginNfcScan(val observation: NfcObservation) : RootIntent
+
     /** Fresh server context only; this transient dialog is never restorable or an authorization by itself. */
     data class ShowAssignmentConfirmation(val context: AssignmentContext) : RootIntent
     data object ConfirmAssignment : RootIntent
@@ -98,7 +105,7 @@ internal sealed interface RootEffect {
 }
 
 internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     override fun reduce(state: RootState, intent: RootIntent): Reduction<RootState, RootEffect> = when (intent) {
         is RootIntent.Select -> if (state.destination == intent.destination) {
             Reduction(state)
@@ -130,6 +137,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                     destination = RootDestination.Printers,
                     pendingManualSpoolId = requireNotNull(SpoolId.from(intent.spoolId)),
                     transientWorkflow = null,
+                    pendingNfcObservation = null,
                     assignmentIntent = null,
                     assignmentConfirmation = null
                 ),
@@ -141,6 +149,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 pendingManualSpoolId = null,
                 transientWorkflow = RootTransientWorkflow.Processing,
+                pendingNfcObservation = null,
                 assignmentIntent = AssignmentIntent(
                     spoolId = intent.spoolId,
                     slot = intent.slot,
@@ -160,6 +169,20 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             )
         )
 
+        is RootIntent.BeginNfcScan -> {
+            require(intent.observation.fingerprint.isNotBlank()) { "NFC fingerprints must not be blank." }
+            require(!intent.observation.payload.isNullOrBlank()) { "Accepted NFC payloads must not be blank." }
+            Reduction(
+                state.copy(
+                    transientWorkflow = RootTransientWorkflow.Processing,
+                    pendingNfcObservation = intent.observation,
+                    pendingManualSpoolId = null,
+                    assignmentIntent = null,
+                    assignmentConfirmation = null
+                )
+            )
+        }
+
         is RootIntent.ShowAssignmentConfirmation -> Reduction(
             state.copy(
                 transientWorkflow = RootTransientWorkflow.Confirmation,
@@ -172,14 +195,26 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
         )
 
         RootIntent.CancelAssignmentConfirmation -> Reduction(
-            state.copy(transientWorkflow = null, assignmentIntent = null, assignmentConfirmation = null)
+            state.copy(
+                transientWorkflow = null,
+                pendingNfcObservation = null,
+                assignmentIntent = null,
+                assignmentConfirmation = null
+            )
         )
 
-        is RootIntent.StartTagLink -> Reduction(state.copy(transientWorkflow = RootTransientWorkflow.TagMutation))
+        is RootIntent.StartTagLink -> Reduction(
+            state.copy(transientWorkflow = RootTransientWorkflow.TagMutation, pendingNfcObservation = null)
+        )
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
         RootIntent.DismissTransient -> Reduction(
-            state.copy(transientWorkflow = null, assignmentIntent = null, assignmentConfirmation = null)
+            state.copy(
+                transientWorkflow = null,
+                pendingNfcObservation = null,
+                assignmentIntent = null,
+                assignmentConfirmation = null
+            )
         )
     }
 }
@@ -248,7 +283,7 @@ class RootComponent(
     private val mutableState = MutableStateFlow(
         RootState(
             destination = restored?.destination ?: RootDestination.Home,
-            nfcState = if (nfcService.isAvailable) HomeNfcState.Available else HomeNfcState.Unavailable
+            nfcState = nfcService.availability.toHomeNfcState()
         )
     )
     override val state: StateFlow<RootState> = mutableState.asStateFlow()
@@ -291,3 +326,9 @@ class RootComponent(
 private fun RootDestination.toConfig(): RootConfig = RootConfig.valueOf(name)
 
 private fun RootConfig.toDestination(): RootDestination = RootDestination.valueOf(name)
+
+private fun NfcAvailability.toHomeNfcState(): HomeNfcState = when (this) {
+    NfcAvailability.Available -> HomeNfcState.Available
+    NfcAvailability.Unavailable -> HomeNfcState.Unavailable
+    NfcAvailability.Disabled -> HomeNfcState.Disabled
+}

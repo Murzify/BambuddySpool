@@ -84,6 +84,22 @@ class RootComponentTest {
         assertNull(restored.state.value.pendingManualSpoolId)
     }
 
+    @Test
+    fun nfcScanStartsProcessingAndNeverRestoresItsPlatformNeutralObservation() {
+        val stateKeeper = StateKeeperDispatcher()
+        val first = component(stateKeeper)
+        val observation = NfcObservation(fingerprint = "0102", payload = "bambuddy-spool://spool/4")
+
+        first.accept(RootIntent.BeginNfcScan(observation))
+
+        assertEquals(RootTransientWorkflow.Processing, first.state.value.transientWorkflow)
+        assertEquals(observation, first.state.value.pendingNfcObservation)
+
+        val restored = component(StateKeeperDispatcher(stateKeeper.save()))
+        assertNull(restored.state.value.transientWorkflow)
+        assertNull(restored.state.value.pendingNfcObservation)
+    }
+
     private fun component(stateKeeper: StateKeeperDispatcher): RootComponent = RootComponent(
         componentContext = DefaultComponentContext(activeLifecycle(), stateKeeper = stateKeeper),
         nfcService = object : NfcService {

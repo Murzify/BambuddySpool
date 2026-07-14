@@ -9,9 +9,19 @@ interface SecureStorage : SecureTokenStore
 /** Platform-neutral result of one NFC observation. */
 data class NfcObservation(val fingerprint: String, val payload: String?)
 
+/** NFC availability distinguished without exposing platform framework types to shared presentation. */
+enum class NfcAvailability {
+    Available,
+    Unavailable,
+    Disabled
+}
+
 /** Narrow NFC capability required by shared workflows. */
 interface NfcService {
     val isAvailable: Boolean
+    val availability: NfcAvailability
+        get() = if (isAvailable) NfcAvailability.Available else NfcAvailability.Unavailable
+
     suspend fun read(): NfcObservation
 }
 
