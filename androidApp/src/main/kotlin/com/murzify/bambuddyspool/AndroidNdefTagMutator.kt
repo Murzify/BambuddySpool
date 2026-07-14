@@ -1,0 +1,227 @@
+package com.murzify.bambuddyspool
+
+import android.nfc.FormatException
+import android.nfc.NdefMessage
+import android.nfc.NdefRecord
+import android.nfc.Tag
+import android.nfc.TagLostException
+import android.nfc.tech.Ndef
+import android.nfc.tech.NdefFormatable
+import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.domain.TagMutationAppliedButUnverified
+import com.murzify.bambuddyspool.core.domain.TagMutationAppliedButUnverifiedReason
+import com.murzify.bambuddyspool.core.domain.TagMutationNotApplied
+import com.murzify.bambuddyspool.core.domain.TagMutationNotAppliedReason
+import com.murzify.bambuddyspool.core.domain.TagMutationOutcome
+import com.murzify.bambuddyspool.core.domain.TagMutationOutcomeUnknown
+import com.murzify.bambuddyspool.core.domain.TagMutationOutcomeUnknownReason
+import com.murzify.bambuddyspool.core.domain.TagMutationSuccess
+import com.murzify.bambuddyspool.core.nfc.CanonicalNfcPayloadCodec
+import com.murzify.bambuddyspool.core.nfc.CommonNdefMessage
+import com.murzify.bambuddyspool.core.nfc.CommonNdefRecord
+import com.murzify.bambuddyspool.core.nfc.NfcPayloadParseResult
+import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
+import com.murzify.bambuddyspool.core.nfc.NfcReadClassifier
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * Android-only physical NDEF write transaction.
+ *
+ * The caller must already have current user authorization. This primitive deliberately exposes neither tag locking
+ * nor a retry loop: a returned success is possible only after a newly opened NDEF connection reads the expected
+ * canonical application URI.
+ */
+internal class AndroidNdefTagMutator(
+    private val fingerprintOf: (Tag) -> String? = ::tagFingerprint,
+    private val ndefOf: (Tag) -> Ndef? = Ndef::get,
+    private val formatableOf: (Tag) -> NdefFormatable? = NdefFormatable::get
+) {
+    suspend fun write(
+        tag: Tag,
+        expectedFingerprint: String,
+        expectedCanonicalUri: String,
+        spoolId: SpoolId?
+    ): TagMutationOutcome = withContext(Dispatchers.IO) {
+        AndroidNdefWritePreflight.fingerprintMismatch(fingerprintOf(tag), expectedFingerprint)?.let {
+            return@withContext it
+        }
+        if (!isCanonicalApplicationUri(expectedCanonicalUri)) {
+            return@withContext TagMutationNotApplied(TagMutationNotAppliedReason.PreconditionsFailed)
+        }
+
+        val message = AndroidNdefMessageCodec.singleUriMessage(expectedCanonicalUri)
+        val ndef = ndefOf(tag)
+        val formatable = formatableOf(tag)
+        when {
+            ndef != null -> writeNdef(ndef, tag, message, expectedCanonicalUri, spoolId)
+            formatable != null -> formatAndVerify(formatable, tag, message, expectedCanonicalUri, spoolId)
+            else -> TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun writeNdef(
+        ndef: Ndef,
+        tag: Tag,
+        message: NdefMessage,
+        expectedCanonicalUri: String,
+        spoolId: SpoolId?
+    ): TagMutationOutcome {
+        try {
+            ndef.connect()
+            AndroidNdefWritePreflight.capabilityFailure(
+                AndroidNdefWriteCapability.WritableNdef(ndef.isWritable, ndef.maxSize),
+                message.byteArrayLength
+            )?.let { return it }
+        } catch (_: TagLostException) {
+            return TagMutationNotApplied(TagMutationNotAppliedReason.TagRemovedBeforeWrite)
+        } catch (_: IOException) {
+            return TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
+        } finally {
+            ndef.closeQuietly()
+        }
+
+        try {
+            ndef.connect()
+            ndef.writeNdefMessage(message)
+        } catch (_: TagLostException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.TagRemovedAfterWriteStarted)
+        } catch (_: IOException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.PlatformResultUnavailable)
+        } catch (_: FormatException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.PlatformResultUnavailable)
+        } finally {
+            ndef.closeQuietly()
+        }
+        return rereadAndVerify(tag, expectedCanonicalUri, spoolId)
+    }
+
+    @Suppress("ReturnCount")
+    private fun formatAndVerify(
+        formatable: NdefFormatable,
+        tag: Tag,
+        message: NdefMessage,
+        expectedCanonicalUri: String,
+        spoolId: SpoolId?
+    ): TagMutationOutcome {
+        try {
+            formatable.connect()
+        } catch (_: TagLostException) {
+            return TagMutationNotApplied(TagMutationNotAppliedReason.TagRemovedBeforeWrite)
+        } catch (_: IOException) {
+            return TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
+        } finally {
+            formatable.closeQuietly()
+        }
+
+        try {
+            formatable.connect()
+            // Android does not expose capacity before a tag is formatted. format() rejects an oversized message.
+            formatable.format(message)
+        } catch (_: TagLostException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.TagRemovedAfterWriteStarted)
+        } catch (_: IOException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.PlatformResultUnavailable)
+        } catch (_: FormatException) {
+            return TagMutationOutcomeUnknown(TagMutationOutcomeUnknownReason.PlatformResultUnavailable)
+        } finally {
+            formatable.closeQuietly()
+        }
+        return rereadAndVerify(tag, expectedCanonicalUri, spoolId)
+    }
+
+    @Suppress("ReturnCount")
+    private fun rereadAndVerify(tag: Tag, expectedCanonicalUri: String, spoolId: SpoolId?): TagMutationOutcome {
+        val reread = ndefOf(tag) ?: return TagMutationAppliedButUnverified(
+            TagMutationAppliedButUnverifiedReason.RereadFailed
+        )
+        val message = try {
+            reread.connect()
+            reread.cachedNdefMessage
+        } catch (_: TagLostException) {
+            return TagMutationAppliedButUnverified(TagMutationAppliedButUnverifiedReason.VerificationInterrupted)
+        } catch (_: IOException) {
+            return TagMutationAppliedButUnverified(TagMutationAppliedButUnverifiedReason.RereadFailed)
+        } finally {
+            reread.closeQuietly()
+        }
+        return if (AndroidNdefMessageCodec.canonicalUri(message) == expectedCanonicalUri) {
+            TagMutationSuccess(spoolId)
+        } else {
+            TagMutationAppliedButUnverified(TagMutationAppliedButUnverifiedReason.VerificationMismatch)
+        }
+    }
+
+    private fun isCanonicalApplicationUri(uri: String): Boolean =
+        (CanonicalNfcPayloadCodec.parse(uri) as? NfcPayloadParseResult.ValidSpoolPayload)?.canonicalUri == uri
+
+    private fun Ndef.closeQuietly() {
+        try {
+            close()
+        } catch (_: IOException) {
+            // The transaction outcome is determined by the explicit write/read calls, not close bookkeeping.
+        }
+    }
+
+    private fun NdefFormatable.closeQuietly() {
+        try {
+            close()
+        } catch (_: IOException) {
+            // The transaction outcome is determined by the explicit format/read calls, not close bookkeeping.
+        }
+    }
+
+    private companion object {
+        fun tagFingerprint(tag: Tag): String? = tag.id
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    }
+}
+
+/** Small deterministic policy seam for the capabilities Android reports before a physical write begins. */
+internal sealed interface AndroidNdefWriteCapability {
+    data class WritableNdef(val writable: Boolean, val maxSize: Int) : AndroidNdefWriteCapability
+    data object NdefFormatable : AndroidNdefWriteCapability
+    data object Unsupported : AndroidNdefWriteCapability
+}
+
+internal object AndroidNdefWritePreflight {
+    fun fingerprintMismatch(actual: String?, expected: String): TagMutationNotApplied? =
+        if (actual == expected) null else TagMutationNotApplied(TagMutationNotAppliedReason.DifferentTagDetected)
+
+    fun capabilityFailure(capability: AndroidNdefWriteCapability, messageSize: Int): TagMutationNotApplied? =
+        when (capability) {
+            is AndroidNdefWriteCapability.WritableNdef -> when {
+                !capability.writable -> TagMutationNotApplied(TagMutationNotAppliedReason.ReadOnlyTag)
+                messageSize > capability.maxSize ->
+                    TagMutationNotApplied(TagMutationNotAppliedReason.InsufficientCapacity)
+                else -> null
+            }
+            AndroidNdefWriteCapability.NdefFormatable -> null
+            AndroidNdefWriteCapability.Unsupported -> TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
+        }
+}
+
+/** Conversion is deliberately tiny so platform NDEF objects never leave Android code. */
+internal object AndroidNdefMessageCodec {
+    fun singleUriMessage(canonicalUri: String): NdefMessage = NdefMessage(arrayOf(NdefRecord.createUri(canonicalUri)))
+
+    fun canonicalUri(message: NdefMessage?): String? {
+        if (message == null) return null
+        val common = CommonNdefMessage(
+            records = message.records.map { record ->
+                record.takeIf { it.isWellKnownUri() }
+                    ?.toUri()
+                    ?.toString()
+                    ?.let(CommonNdefRecord::Uri)
+                    ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
+            }
+        )
+        return (NfcReadClassifier.classify(common) as? NfcReadClassification.ValidSpoolPayload)?.canonicalUri
+    }
+
+    private fun NdefRecord.isWellKnownUri(): Boolean =
+        tnf == NdefRecord.TNF_WELL_KNOWN && type.contentEquals(NdefRecord.RTD_URI)
+}

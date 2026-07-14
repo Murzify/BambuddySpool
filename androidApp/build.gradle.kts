@@ -23,6 +23,7 @@ kotlin {
 }
 dependencies {
     implementation(projects.shared)
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.androidx.activity.compose)
 

@@ -200,7 +200,7 @@ Serialize one NFC session. Suppress accepted duplicate fingerprints within one s
 Task DOD
 Deterministic race tests prove suppression, supersession, and active-plus-latest capacity; parallel POSTs cannot occur; Android objects and restorable mutation state are absent.
 
-- [ ] [CODE]-[010] Implement Android NFC Write and Read-Back Primitives
+- [x] [CODE]-[010] Implement Android NFC Write and Read-Back Primitives
 Task Context
 Support writable Ndef and NdefFormatable, enforce capacity, write one URI record, reconnect, and independently reread. Verify canonical application URIs, not bytes. Classify read-only/unsupported tags without mutation. Bind authorization to the expected fingerprint and expose no read-only locking.
 Task DOD
