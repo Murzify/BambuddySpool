@@ -7,10 +7,10 @@ import kotlin.test.assertTrue
 class SharedCommonTest {
 
     @Test
-    fun everyRootDestinationHasANonEmptyUniqueTitle() {
-        val titles = RootDestination.entries.map(RootDestination::title)
+    fun everyRootDestinationHasAUniqueStableName() {
+        val names = RootDestination.entries.map(RootDestination::name)
 
-        assertTrue(titles.all(String::isNotBlank))
-        assertTrue(titles.size == titles.distinct().size)
+        assertTrue(names.all(String::isNotBlank))
+        assertTrue(names.size == names.distinct().size)
     }
 }

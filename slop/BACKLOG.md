@@ -152,7 +152,7 @@ Build the shared one-page URL/token/Test/Save setup. Validate reachability and a
 Task DOD
 Setup and Settings share one service; secrets are absent from saved/navigation state; validation failure changes nothing; confirmed server change resets correct data/consents; accessible reducer-tested UI uses resources.
 
-- [ ] [CODE]-[002] Implement Root Navigation, Home, and Restoration
+- [x] [CODE]-[002] Implement Root Navigation, Home, and Restoration
 Task Context
 Create Decompose Home/Spools/Printers/Settings roots with independent child stacks, bottom navigation below 600dp and rail otherwise. Assignment/tag mutation are transient root workflows. Restore only safe navigation/search/filter state, never credentials, authorization, NFC sessions, or mutations.
 Task DOD

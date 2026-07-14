@@ -46,7 +46,7 @@ internal interface ComponentGraph {
 
     @DependencyGraph.Factory
     fun interface Factory {
-        fun create(@Provides componentContext: ComponentContext): ComponentGraph
+        fun create(@Provides componentContext: ComponentContext, @Provides nfcService: NfcService): ComponentGraph
     }
 }
 
@@ -66,9 +66,13 @@ internal fun createApplicationGraph(platformServices: PlatformServices): Applica
 
 /** Builds a retained shared root from an explicit lifecycle context and platform-service bundle. */
 fun createRootGraph(componentContext: ComponentContext, platformServices: PlatformServices): RootGraph {
-    val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(componentContext)
+    val applicationGraph = createApplicationGraph(platformServices)
+    val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(
+        componentContext = componentContext,
+        nfcService = applicationGraph.nfcService
+    )
     return RootGraph(
-        applicationGraph = createApplicationGraph(platformServices),
+        applicationGraph = applicationGraph,
         rootComponent = componentGraph.rootComponent
     )
 }
