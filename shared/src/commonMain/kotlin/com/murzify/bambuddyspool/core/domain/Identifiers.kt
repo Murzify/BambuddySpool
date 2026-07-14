@@ -25,6 +25,9 @@ value class SnapshotGeneration private constructor(val value: Long) {
         fun from(value: Long): SnapshotGeneration? = value.takeIf { it >= MIN_SNAPSHOT_GENERATION }?.let(
             ::SnapshotGeneration
         )
+
+        fun nextAfter(value: SnapshotGeneration): SnapshotGeneration? =
+            value.value.takeIf { it < Long.MAX_VALUE }?.let { SnapshotGeneration(it + 1) }
     }
 }
 

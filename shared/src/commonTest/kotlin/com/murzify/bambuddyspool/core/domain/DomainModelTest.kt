@@ -27,8 +27,10 @@ class DomainModelTest {
         val printerId = printerId()
 
         assertNotNull(SlotKey.from(printerId = printerId, amsId = 0, trayId = 0))
+        assertNotNull(SlotKey.from(printerId = printerId.value, amsId = 0, trayId = 0))
         assertNotNull(SlotKey.from(printerId = printerId, amsId = 255, trayId = 255))
 
+        assertNull(SlotKey.from(printerId = 0L, amsId = 0, trayId = 0))
         assertNull(SlotKey.from(printerId = printerId, amsId = -1, trayId = 0))
         assertNull(SlotKey.from(printerId = printerId, amsId = 0, trayId = -1))
         assertNull(SlotKey.from(printerId = printerId, amsId = 256, trayId = 0))
@@ -78,6 +80,15 @@ class DomainModelTest {
 
         assertEquals(generation, command.expectedSnapshotGeneration)
         assertEquals(AssignmentSource.NfcScan, command.source)
+    }
+
+    @Test
+    fun snapshotGenerationAdvancesOnceAndRejectsOverflow() {
+        val initial = assertNotNull(SnapshotGeneration.from(0L))
+        val maximum = assertNotNull(SnapshotGeneration.from(Long.MAX_VALUE))
+
+        assertEquals(1L, assertNotNull(SnapshotGeneration.nextAfter(initial)).value)
+        assertNull(SnapshotGeneration.nextAfter(maximum))
     }
 
     @Test

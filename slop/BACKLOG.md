@@ -126,7 +126,7 @@ Remove unused DTO fields, entities, DAOs, indexes, fixtures, migrations, and dup
 Task DOD
 Dead code is gone; schema stores only required data; contract/database tests and iOS compile pass; secret scans remain clean.
 
-- [ ] [DATA]-[012] Deduplicate Validation and Mapping Logic
+- [x] [DATA]-[012] Deduplicate Validation and Mapping Logic
 Task Context
 Centralize ID/URI/URL validation, DTO mapping, SlotKey identity, errors, and snapshot transactions without introducing speculative mapper/repository frameworks.
 Task DOD

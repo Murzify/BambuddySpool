@@ -92,34 +92,37 @@ interface SnapshotTransactionDao {
     suspend fun upsertSyncMetadata(metadata: SyncMetadataEntity)
 
     @Transaction
-    suspend fun publishSnapshot(
-        expectedGeneration: Long,
-        nextMetadata: SyncMetadataEntity,
-        printers: List<PrinterEntity>,
-        printerIdsToReplace: List<Long>,
-        slots: List<PrinterSlotEntity>,
-        spools: List<SpoolEntity>,
-        assignments: List<AssignmentEntity>
-    ): SnapshotTransactionResult {
-        val current = currentSyncMetadata()?.snapshotGeneration ?: 0L
-        if (current != expectedGeneration) {
+    suspend fun publishSnapshot(publication: SnapshotPublication): SnapshotTransactionResult {
+        val currentGeneration = currentSyncMetadata()?.snapshotGeneration ?: 0L
+        if (currentGeneration != publication.expectedGeneration) {
             return SnapshotTransactionResult.StaleGeneration
         }
-        val generation = nextMetadata.snapshotGeneration
-        upsertPrinters(printers)
-        printerIdsToReplace.forEach { deleteSlotsForPrinter(it) }
-        upsertPrinterSlots(slots)
-        upsertSpools(spools)
+        val generation = publication.nextMetadata.snapshotGeneration
+        upsertPrinters(publication.printers)
+        publication.printerIdsToReplace.forEach { deleteSlotsForPrinter(it) }
+        upsertPrinterSlots(publication.slots)
+        upsertSpools(publication.spools)
         deleteAllAssignments()
-        upsertAssignments(assignments)
+        upsertAssignments(publication.assignments)
         deleteAssignmentsBeforeGeneration(generation)
         deleteSlotsBeforeGeneration(generation)
         deleteSpoolsBeforeGeneration(generation)
         deletePrintersBeforeGeneration(generation)
-        upsertSyncMetadata(nextMetadata)
+        upsertSyncMetadata(publication.nextMetadata)
         return SnapshotTransactionResult.Published
     }
 }
+
+/** The complete Room write-set guarded by one snapshot-generation comparison. */
+data class SnapshotPublication(
+    val expectedGeneration: Long,
+    val nextMetadata: SyncMetadataEntity,
+    val printers: List<PrinterEntity>,
+    val printerIdsToReplace: List<Long>,
+    val slots: List<PrinterSlotEntity>,
+    val spools: List<SpoolEntity>,
+    val assignments: List<AssignmentEntity>
+)
 
 enum class SnapshotTransactionResult {
     Published,

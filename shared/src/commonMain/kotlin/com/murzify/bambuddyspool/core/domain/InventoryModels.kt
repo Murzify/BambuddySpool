@@ -8,6 +8,9 @@ data class SlotKey(val printerId: PrinterId, val amsId: Int, val trayId: Int) {
     }
 
     companion object {
+        fun from(printerId: Long, amsId: Int, trayId: Int): SlotKey? =
+            PrinterId.from(printerId)?.let { from(it, amsId, trayId) }
+
         fun from(printerId: PrinterId, amsId: Int, trayId: Int): SlotKey? = if (
             isValidSlotCoordinate(amsId) && isValidSlotCoordinate(trayId)
         ) {

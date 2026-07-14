@@ -89,8 +89,5 @@ private fun Long.toPrinterId(): PrinterId = PrinterId.from(this) ?: error("Persi
 
 private fun Long.toSpoolId(): SpoolId = SpoolId.from(this) ?: error("Persisted spool ID must be positive")
 
-private fun slotKey(printerId: Long, amsId: Int, trayId: Int): SlotKey = SlotKey.from(
-    printerId = printerId.toPrinterId(),
-    amsId = amsId,
-    trayId = trayId
-) ?: error("Persisted SlotKey coordinates must be valid")
+private fun slotKey(printerId: Long, amsId: Int, trayId: Int): SlotKey =
+    SlotKey.from(printerId, amsId, trayId) ?: error("Persisted SlotKey coordinates must be valid")

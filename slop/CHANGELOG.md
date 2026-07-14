@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+- Completed `[DATA]-[012]` by centralizing raw database slot-coordinate conversion in `SlotKey`, snapshot-generation advancement, and the complete Room snapshot publication write-set. Retained distinct canonical parsers for Bambuddy base URLs and NFC payloads because their grammar and typed failures are intentionally different.
+
 - Completed `[DATA]-[011]` by removing unused Room DAO surfaces, assignment projections and query variants, transport fields that never reached domain behavior, redundant normalized spool copies, and unused persistence timestamps/indexes.
 - Preserved the version 1 baseline schema export unchanged, introduced a minimized version 2 schema, and added an explicit Room KMP `1 -> 2` migration registry that copies retained snapshot data before rebuilding tables and FTS.
 - Completed `[DATA]-[010]` with common cache projection contracts for `InitialLoading`, `Content`, `ContentRefreshing`, and `FatalErrorWithoutCache`, plus stale state, nonblocking refresh errors, and typed mutation availability.

@@ -6,6 +6,7 @@ import com.murzify.bambuddyspool.core.database.BambuddyDatabase
 import com.murzify.bambuddyspool.core.database.PrinterEntity
 import com.murzify.bambuddyspool.core.database.PrinterSlotEntity
 import com.murzify.bambuddyspool.core.database.SYNC_METADATA_SNAPSHOT_KEY
+import com.murzify.bambuddyspool.core.database.SnapshotPublication
 import com.murzify.bambuddyspool.core.database.SnapshotTransactionResult
 import com.murzify.bambuddyspool.core.database.SpoolEntity
 import com.murzify.bambuddyspool.core.database.SyncMetadataEntity
@@ -27,8 +28,7 @@ class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore 
         snapshot: DomainSnapshot,
         onlyIfCurrentGeneration: SnapshotGeneration
     ): SnapshotPublishResult {
-        val nextGenerationValue = onlyIfCurrentGeneration.value + 1
-        val nextGeneration = SnapshotGeneration.from(nextGenerationValue)
+        val nextGeneration = SnapshotGeneration.nextAfter(onlyIfCurrentGeneration)
         val result = if (nextGeneration == null) {
             SnapshotPublishResult.Rejected("Snapshot generation overflow")
         } else {
@@ -60,18 +60,20 @@ class RoomSnapshotStore(private val database: BambuddyDatabase) : SnapshotStore 
         }
 
         val transactionResult = database.snapshotTransactions().publishSnapshot(
-            expectedGeneration = onlyIfCurrentGeneration.value,
-            nextMetadata = SyncMetadataEntity(
-                metadataKey = SYNC_METADATA_SNAPSHOT_KEY,
-                lastSuccessfulSyncAtEpochMillis = snapshot.updatedAtEpochMillis,
-                snapshotGeneration = generation,
-                schemaVersion = BAMBUDDY_DATABASE_VERSION
-            ),
-            printers = printerEntities,
-            printerIdsToReplace = snapshot.printers.map { it.id.value },
-            slots = slotEntities,
-            spools = spoolEntities,
-            assignments = assignmentEntities
+            SnapshotPublication(
+                expectedGeneration = onlyIfCurrentGeneration.value,
+                nextMetadata = SyncMetadataEntity(
+                    metadataKey = SYNC_METADATA_SNAPSHOT_KEY,
+                    lastSuccessfulSyncAtEpochMillis = snapshot.updatedAtEpochMillis,
+                    snapshotGeneration = generation,
+                    schemaVersion = BAMBUDDY_DATABASE_VERSION
+                ),
+                printers = printerEntities,
+                printerIdsToReplace = snapshot.printers.map { it.id.value },
+                slots = slotEntities,
+                spools = spoolEntities,
+                assignments = assignmentEntities
+            )
         )
         return when (transactionResult) {
             SnapshotTransactionResult.Published -> SnapshotPublishResult.Published

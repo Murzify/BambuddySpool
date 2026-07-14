@@ -13,7 +13,7 @@ internal fun Long.validatePositiveId() {
 }
 
 internal fun slotKey(printerId: Long, amsId: Int, trayId: Int): SlotKey =
-    SlotKey.from(printerId.toPrinterId(), amsId, trayId) ?: invalidDomainField()
+    SlotKey.from(printerId, amsId, trayId) ?: invalidDomainField()
 
 internal fun invalidDomainField(): Nothing = throw InvalidDomainFieldException()
 
