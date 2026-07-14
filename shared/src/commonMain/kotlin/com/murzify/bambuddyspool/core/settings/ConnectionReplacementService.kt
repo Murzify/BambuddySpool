@@ -13,8 +13,7 @@ class ConnectionReplacementService(
     private val settingsStore: ConnectionSettingsStore,
     private val tokenStore: SecureTokenStore,
     private val validator: ConnectionValidator,
-    private val cacheMaintenance: ConnectionCacheMaintenance,
-    private val initialSync: InitialConnectionSync
+    private val replacementTransaction: ConnectionReplacementTransaction
 ) {
 
     @Suppress("ReturnCount")
@@ -55,14 +54,13 @@ class ConnectionReplacementService(
             null
         }
 
-        CompensatingConnectionReplacementTransaction(settingsStore, tokenStore, cacheMaintenance).commit(
+        replacementTransaction.commit(
             activeSettings.forConnectionReplacement(
                 newBaseUrl = newBaseUrl,
                 httpConsentOrigin = httpConsentOrigin
             ),
             token
         )
-        initialSync.requestInitialSync()
         return ConnectionReplacementResult.Replaced
     }
 
@@ -120,40 +118,16 @@ enum class ConnectionValidationFailureReason {
     TlsValidationFailed
 }
 
-/** Durable all-or-nothing boundary for settings, credential, default reset, consent reset, and cache clearing. */
+/**
+ * Durable all-or-nothing boundary for settings, credential, default reset, consent reset, cache clearing, and
+ * initial-sync scheduling.
+ *
+ * Its implementation owns the pending-operation and recovery protocol from ADR-011. It must return only after the
+ * replacement is durably committed *and* the initial sync is scheduled. Failures and cancellation propagate to the
+ * caller; they must never be translated into a successful replacement.
+ */
 interface ConnectionReplacementTransaction {
     suspend fun commit(settings: ConnectionSettings, token: SecretValue)
-}
-
-interface ConnectionCacheMaintenance {
-    suspend fun clearDomainSnapshot()
-}
-
-private class CompensatingConnectionReplacementTransaction(
-    private val settings: ConnectionSettingsStore,
-    private val tokens: SecureTokenStore,
-    private val cache: ConnectionCacheMaintenance
-) : ConnectionReplacementTransaction {
-    override suspend fun commit(settings: ConnectionSettings, token: SecretValue) {
-        val oldSettings = this.settings.read()
-        val oldToken = tokens.currentTokenForReplacement()
-        try {
-            this.settings.replace(settings)
-            tokens.replaceToken(token)
-            cache.clearDomainSnapshot()
-        } catch (failure: Throwable) {
-            restore(oldSettings, oldToken)
-            throw failure
-        }
-    }
-    private suspend fun restore(settings: ConnectionSettings, token: SecretValue?) {
-        this.settings.replace(settings)
-        if (token == null) tokens.clearToken() else tokens.replaceToken(token)
-    }
-}
-
-interface InitialConnectionSync {
-    suspend fun requestInitialSync()
 }
 
 sealed interface ConnectionReplacementResult {

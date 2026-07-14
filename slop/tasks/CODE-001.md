@@ -32,8 +32,9 @@ connection replacement service only after successful validation and required con
 - Connection testing parses the permitted canonical HTTP/HTTPS URL forms and checks reachability/authentication
   only; it never changes active settings, token, cache, defaults, consents, or sync state.
 - Replacement now follows TECHSPEC 8.7 ordering: parse, validate reachability/authentication, show a required
-  instance-change warning when applicable, persist the replacement, reset cache/default/security scope as defined
-  by the existing service, and request initial synchronization. A failed validation leaves active state unchanged.
+  instance-change warning when applicable, then delegate exactly one durable replacement transaction. That boundary
+  owns settings/token/default/consent updates, cache clearing, and initial-sync scheduling; failure or cancellation
+  cannot return a successful save. A failed validation leaves active state unchanged.
 - Saving an unchanged canonical URL uses the token-replacement path instead: it validates the replacement token and
   changes no cache, default printer, acknowledgement, or synchronization state.
 - The screen is scrollable, uses standard labelled text-field/button/dialog semantics, suppresses token rendering,
@@ -50,8 +51,8 @@ git diff --check
 ```
 
 Focused Android-host tests cover the connection service and pure reducer paths, including validation-only testing,
-validation failure preservation, validation-before-warning ordering, sequential instance/HTTP confirmations, cache
-clearing, and initial-sync request.
+validation failure preservation, validation-before-warning ordering, sequential instance/HTTP confirmations, durable
+transaction ownership, initial-sync scheduling failure, and cancellation propagation.
 
 No private `.env.local` file was read and no Bambuddy request was made.
 
@@ -70,8 +71,9 @@ No private `.env.local` file was read and no Bambuddy request was made.
 - Platform-backed secure storage, settings persistence, and network/TLS policy adapters remain the responsibilities
   established in the preceding data/security backlog. This task does not introduce any new persistence or network
   implementation.
-- The durable `ConnectionReplacementTransaction` boundary must be implemented by the production persistence layer
-  as one all-or-nothing commit; tests use an in-memory transactional fake.
+- The production persistence adapter must implement `ConnectionReplacementTransaction` as the ADR-011 pending-
+  operation/recovery protocol; the service deliberately has no compensating multi-store fallback. Tests use a
+  deterministic transactional fake to verify the service boundary and failure propagation.
 
 ## Added Backlog Tasks
 

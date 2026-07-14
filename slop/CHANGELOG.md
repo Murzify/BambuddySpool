@@ -4,6 +4,9 @@
 
 - Added ADR-011 for durable fail-closed connection replacement and recovery across settings, credentials, cache,
   and initial-sync scheduling.
+- Removed the unsafe compensating multi-store replacement path. `ConnectionReplacementService` now invokes only an
+  injected ADR-011 transaction that includes initial-sync scheduling, and deterministic tests prove scheduling
+  failure and cancellation cannot be surfaced as a successful save.
 - Completed `[CODE]-[001]` with one resource-backed shared URL/token/Test/Save form for Setup and Settings. The
   token is kept only in unsaved Compose memory and is converted directly to the non-printing secret boundary;
   reducer, navigation, and saved state contain only safe form metadata.
