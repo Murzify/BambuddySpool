@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 class DatabaseSchemaContractTest {
 
     @Test
-    fun schemaVersionOneContainsRequiredTables() {
-        assertEquals(1, BambuddyDatabaseSchema.VERSION)
+    fun schemaVersionTwoContainsRequiredTables() {
+        assertEquals(2, BambuddyDatabaseSchema.VERSION)
         assertEquals(
             listOf("printers", "printer_slots", "spools", "spools_fts", "assignments", "sync_metadata"),
             BambuddyDatabaseSchema.tables
@@ -58,6 +58,23 @@ class DatabaseSchemaContractTest {
         assertTrue("access_code" !in schema)
         assertTrue("raw_response" !in schema)
         assertTrue("diagnostic" !in schema)
+    }
+
+    @Test
+    fun versionOneSnapshotsHaveAnExplicitDeterministicUpgradePath() {
+        val migration = BambuddyDatabaseMigrations.MIGRATION_1_2
+        val statements = BambuddyDatabaseMigrations.V1_TO_V2_STATEMENTS
+
+        assertEquals(1, migration.startVersion)
+        assertEquals(2, migration.endVersion)
+        assertEquals(listOf(migration), BambuddyDatabaseMigrations.all.toList())
+        assertTrue(statements.indexOf(COPY_PRINTERS_V1_TO_V2) < statements.indexOf("DROP TABLE printers"))
+        assertTrue(statements.indexOf(COPY_SPOOLS_V1_TO_V2) < statements.indexOf("DROP TABLE spools"))
+        assertTrue(statements.indexOf(COPY_ASSIGNMENTS_V1_TO_V2) < statements.indexOf("DROP TABLE assignments"))
+        assertTrue(statements.indexOf(COPY_SYNC_METADATA_V1_TO_V2) < statements.indexOf("DROP TABLE sync_metadata"))
+        assertTrue(statements.contains("ALTER TABLE sync_metadata_v2 RENAME TO sync_metadata"))
+        assertTrue(statements.contains(REBUILD_SPOOLS_FTS))
+        assertTrue(COPY_SYNC_METADATA_V1_TO_V2.contains("snapshot_generation, 2"))
     }
 
     @Test

@@ -27,4 +27,4 @@ abstract class BambuddyDatabase : RoomDatabase() {
     abstract fun snapshotTransactions(): SnapshotTransactionDao
 }
 
-const val BAMBUDDY_DATABASE_VERSION: Int = 1
+const val BAMBUDDY_DATABASE_VERSION: Int = 2
