@@ -55,8 +55,47 @@ internal class AndroidNdefTagMutator(
         val ndef = ndefOf(tag)
         val formatable = formatableOf(tag)
         when {
-            ndef != null -> writeNdef(ndef, tag, message, expectedCanonicalUri, spoolId)
-            formatable != null -> formatAndVerify(formatable, tag, message, expectedCanonicalUri, spoolId)
+            ndef != null -> writeNdef(
+                ndef,
+                tag,
+                message,
+                { message, _ -> AndroidNdefMessageCodec.canonicalUri(message) == expectedCanonicalUri },
+                spoolId
+            )
+            formatable != null -> formatAndVerify(
+                formatable,
+                tag,
+                message,
+                { message, _ -> AndroidNdefMessageCodec.canonicalUri(message) == expectedCanonicalUri },
+                spoolId
+            )
+            else -> TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
+        }
+    }
+
+    /** Clears to a normalized empty NDEF message without exposing an irreversible tag-locking API. */
+    suspend fun clear(tag: Tag, expectedFingerprint: String): TagMutationOutcome = withContext(Dispatchers.IO) {
+        AndroidNdefWritePreflight.fingerprintMismatch(fingerprintOf(tag), expectedFingerprint)?.let {
+            return@withContext it
+        }
+        val message = AndroidNdefMessageCodec.normalizedEmptyMessage()
+        val ndef = ndefOf(tag)
+        val formatable = formatableOf(tag)
+        when {
+            ndef != null -> writeNdef(
+                ndef,
+                tag,
+                message,
+                { reread, writable -> writable && AndroidNdefMessageCodec.isNormalizedEmpty(reread) },
+                null
+            )
+            formatable != null -> formatAndVerify(
+                formatable,
+                tag,
+                message,
+                { reread, writable -> writable && AndroidNdefMessageCodec.isNormalizedEmpty(reread) },
+                null
+            )
             else -> TagMutationNotApplied(TagMutationNotAppliedReason.UnsupportedTag)
         }
     }
@@ -66,7 +105,7 @@ internal class AndroidNdefTagMutator(
         ndef: Ndef,
         tag: Tag,
         message: NdefMessage,
-        expectedCanonicalUri: String,
+        verification: (NdefMessage?, Boolean) -> Boolean,
         spoolId: SpoolId?
     ): TagMutationOutcome {
         try {
@@ -95,7 +134,7 @@ internal class AndroidNdefTagMutator(
         } finally {
             ndef.closeQuietly()
         }
-        return rereadAndVerify(tag, expectedCanonicalUri, spoolId)
+        return rereadAndVerify(tag, verification, spoolId)
     }
 
     @Suppress("ReturnCount")
@@ -103,7 +142,7 @@ internal class AndroidNdefTagMutator(
         formatable: NdefFormatable,
         tag: Tag,
         message: NdefMessage,
-        expectedCanonicalUri: String,
+        verification: (NdefMessage?, Boolean) -> Boolean,
         spoolId: SpoolId?
     ): TagMutationOutcome {
         try {
@@ -129,11 +168,15 @@ internal class AndroidNdefTagMutator(
         } finally {
             formatable.closeQuietly()
         }
-        return rereadAndVerify(tag, expectedCanonicalUri, spoolId)
+        return rereadAndVerify(tag, verification, spoolId)
     }
 
     @Suppress("ReturnCount")
-    private fun rereadAndVerify(tag: Tag, expectedCanonicalUri: String, spoolId: SpoolId?): TagMutationOutcome {
+    private fun rereadAndVerify(
+        tag: Tag,
+        verification: (NdefMessage?, Boolean) -> Boolean,
+        spoolId: SpoolId?
+    ): TagMutationOutcome {
         val reread = ndefOf(tag) ?: return TagMutationAppliedButUnverified(
             TagMutationAppliedButUnverifiedReason.RereadFailed
         )
@@ -147,7 +190,7 @@ internal class AndroidNdefTagMutator(
         } finally {
             reread.closeQuietly()
         }
-        return if (AndroidNdefMessageCodec.canonicalUri(message) == expectedCanonicalUri) {
+        return if (verification(message, reread.isWritable)) {
             TagMutationSuccess(spoolId)
         } else {
             TagMutationAppliedButUnverified(TagMutationAppliedButUnverifiedReason.VerificationMismatch)
@@ -208,19 +251,29 @@ internal object AndroidNdefWritePreflight {
 internal object AndroidNdefMessageCodec {
     fun singleUriMessage(canonicalUri: String): NdefMessage = NdefMessage(arrayOf(NdefRecord.createUri(canonicalUri)))
 
-    fun canonicalUri(message: NdefMessage?): String? {
-        if (message == null) return null
-        val common = CommonNdefMessage(
-            records = message.records.map { record ->
-                record.takeIf { it.isWellKnownUri() }
-                    ?.toUri()
-                    ?.toString()
-                    ?.let(CommonNdefRecord::Uri)
-                    ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
-            }
-        )
-        return (NfcReadClassifier.classify(common) as? NfcReadClassification.ValidSpoolPayload)?.canonicalUri
-    }
+    /** Android rejects a zero-record [NdefMessage], so a single TNF_EMPTY record is our normalized empty form. */
+    fun normalizedEmptyMessage(): NdefMessage = NdefMessage(
+        arrayOf(NdefRecord(NdefRecord.TNF_EMPTY, ByteArray(0), ByteArray(0), ByteArray(0)))
+    )
+
+    fun canonicalUri(message: NdefMessage?): String? = message
+        ?.takeUnless(::isNormalizedEmpty)
+        ?.let { ndefMessage ->
+            val common = CommonNdefMessage(
+                records = ndefMessage.records.map { record ->
+                    record.takeIf { it.isWellKnownUri() }
+                        ?.toUri()
+                        ?.toString()
+                        ?.let(CommonNdefRecord::Uri)
+                        ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
+                }
+            )
+            (NfcReadClassifier.classify(common) as? NfcReadClassification.ValidSpoolPayload)?.canonicalUri
+        }
+
+    fun isNormalizedEmpty(message: NdefMessage?): Boolean = message?.records?.let { records ->
+        records.size == 1 && records.single().tnf == NdefRecord.TNF_EMPTY
+    } == true
 
     private fun NdefRecord.isWellKnownUri(): Boolean =
         tnf == NdefRecord.TNF_WELL_KNOWN && type.contentEquals(NdefRecord.RTD_URI)

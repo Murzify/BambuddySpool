@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[011]` with a common transient tag-mutation state machine. Empty tags can be linked after a
+  fresh GET-only online validation; different, unknown, and malformed payloads require an explicit overwrite
+  confirmation; an identical canonical payload is `Already linked`. Clear also requires confirmation, uses an empty
+  writable NDEF message, and independently verifies normalized empty read-back. Physical failures never retry
+  automatically: retry first requires a same-fingerprint read, then another explicit confirmation. This workflow
+  cannot create Bambuddy assignments, and all authorization/fingerprint state remains process-local.
+
 - Completed `[CODE]-[009]` with a shared, pure NFC session coordinator. Accepted observations carry only a
   physical fingerprint, canonical payload, and platform monotonic timestamp; same-fingerprint scans inside one
   second are suppressed without wall-clock use.

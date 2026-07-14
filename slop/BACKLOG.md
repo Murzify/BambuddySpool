@@ -206,7 +206,7 @@ Support writable Ndef and NdefFormatable, enforce capacity, write one URI record
 Task DOD
 All uncertain write phases have correct typed outcomes; overflow/different-tag cases never write; generated NdefMessage tests cover capabilities and records; irreversible APIs are absent.
 
-- [ ] [CODE]-[011] Implement Link, Overwrite, and Clear Workflows
+- [x] [CODE]-[011] Implement Link, Overwrite, and Clear Workflows
 Task Context
 Fresh-validate selected spools online. Empty tags can link; nonempty different/unknown payloads require explicit old/new overwrite confirmation; the same payload is Already linked. Clear always confirms and leaves a writable readable empty NDEF tag. Never mutate Bambuddy. Do not automatically retry physical writes; retry starts with read-before-write.
 Task DOD

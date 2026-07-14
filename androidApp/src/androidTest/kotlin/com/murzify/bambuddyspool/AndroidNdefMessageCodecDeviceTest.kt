@@ -85,4 +85,14 @@ class AndroidNdefMessageCodecDeviceTest {
             )
         )
     }
+
+    @Test
+    fun androidNormalizedEmptyNdefMessageUsesOnlyTheStandardEmptyRecord() {
+        val empty = AndroidNdefMessageCodec.normalizedEmptyMessage()
+        val uri = AndroidNdefMessageCodec.singleUriMessage("bambuddy-spool://spool/42")
+
+        assertTrue(AndroidNdefMessageCodec.isNormalizedEmpty(empty))
+        assertEquals(NdefRecord.TNF_EMPTY, empty.records.single().tnf)
+        assertTrue(!AndroidNdefMessageCodec.isNormalizedEmpty(uri))
+    }
 }
