@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[005]` with a common, fail-closed assignment preflight and initial application-scoped POST
+  boundary shared by manual and NFC entry. It refreshes spool, printer, status, and assignments, rejects stale,
+  offline, unsupported, changed-slot, inconsistent, or unconfirmed context before POST, and never persists/replays a
+  command.
+- Added immutable pure preflight decisions for Ready, AlreadyAssigned, and one combined-confirmation requirement;
+  HTTP success remains fail-closed pending CODE-007 exact verification. Deterministic tests cover cancellation
+  ownership, stale/unsupported blocking, confirmation, and idempotency.
 - Completed `[CODE]-[004]` with shared Room-projection printer and slot screens. External slots are the only
   selectable manual-assignment targets; AMS slots are visibly read-only and unknown, stale, offline, or unsupported
   topology leaves mutation disabled.

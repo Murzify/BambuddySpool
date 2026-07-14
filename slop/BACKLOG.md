@@ -170,7 +170,7 @@ Show assignment-relevant printer details. External slots are labeled/selectable;
 Task DOD
 Screens use Room projections; all topology states render correctly; AMS cannot be targeted; manual and NFC share orchestration; stale/offline guards, accessibility, and tests pass.
 
-- [ ] [CODE]-[005] Implement AssignmentOrchestrator
+- [x] [CODE]-[005] Implement AssignmentOrchestrator
 Task Context
 Implement the complete shared state machine. Refresh relevant status/assignments and validate spool before mutation. If SlotKey changes, return to selection without POST. Allow zero confirmation only under every TECHSPEC safety condition. Keep commands immutable across retries and do not persist/replay mutations.
 Task DOD
