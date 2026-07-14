@@ -182,7 +182,7 @@ Use one surface for printer, slot, move warning, all current locations, target r
 Task DOD
 Every path has zero or one confirmation; required focus order and move disclosure hold; tests prove selection, conflicts, replacement, and AlreadyAssigned behavior.
 
-- [ ] [CODE]-[007] Implement POST Retry and Exact Verification
+- [x] [CODE]-[007] Implement POST Retry and Exact Verification
 Task Context
 Retry only retryable transport/5xx errors at 500ms, 1s, and 2s, maximum four identical POSTs, without pre-retry GET. Do not auto-retry 4xx, contract, topology, TLS, or invalid command failures. After POST poll assignments immediately, +200ms, +500ms and require exactly one matching printer/ams/tray/spool. Verification never resends POST.
 Task DOD

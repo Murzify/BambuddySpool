@@ -1,6 +1,9 @@
 package com.murzify.bambuddyspool.core.assignment
 
 import com.murzify.bambuddyspool.core.domain.AlreadyAssigned
+import com.murzify.bambuddyspool.core.domain.AssignedAndConfigured
+import com.murzify.bambuddyspool.core.domain.AssignedConfigurationPending
+import com.murzify.bambuddyspool.core.domain.AssignedInventoryOnly
 import com.murzify.bambuddyspool.core.domain.Assignment
 import com.murzify.bambuddyspool.core.domain.AssignmentCommand
 import com.murzify.bambuddyspool.core.domain.AssignmentResult
@@ -14,6 +17,8 @@ import com.murzify.bambuddyspool.core.domain.Spool
 import com.murzify.bambuddyspool.core.domain.StaleOrOfflineReason
 import com.murzify.bambuddyspool.core.domain.StaleOrOfflineState
 import com.murzify.bambuddyspool.core.domain.UnsupportedTopologyReason
+import com.murzify.bambuddyspool.core.domain.VerificationMismatch
+import com.murzify.bambuddyspool.core.domain.VerificationMismatchReason
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
@@ -24,6 +29,7 @@ import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 
 /**
  * Common assignment boundary for both NFC and manual entry. It deliberately owns no saved state, queue, or replay
@@ -79,14 +85,10 @@ sealed interface AssignmentWorkflowFailure : DomainFailure {
     data object SlotChanged : AssignmentWorkflowFailure
     data object InconsistentAssignments : AssignmentWorkflowFailure
     data class ConfirmationRequired(val reason: AssignmentConfirmationReason) : AssignmentWorkflowFailure
-
-    /** A POST response is never a success boundary; CODE-007 supplies exact verification. */
-    data object VerificationRequired : AssignmentWorkflowFailure
 }
 
 /**
- * Isolates the irreversible transition. It owns exactly one initial POST and intentionally does not retry or verify:
- * those policies are added by CODE-007 without allowing a successful HTTP response to become product success.
+ * Isolates the irreversible transition so retries reuse the exact immutable command.
  */
 fun interface InitialAssignmentPoster {
     suspend fun post(command: AssignmentCommand): BambuddyNetworkResult<Assignment>
@@ -98,7 +100,9 @@ class DefaultAssignmentOrchestrator(
     private val topologyResolver: SlotTopologyResolver,
     private val freshnessGate: AssignmentFreshnessGate,
     private val applicationScope: CoroutineScope,
-    private val poster: InitialAssignmentPoster = InitialAssignmentPoster(repository::createAssignment)
+    private val poster: InitialAssignmentPoster = InitialAssignmentPoster(repository::createAssignment),
+    private val wait: suspend (Long) -> Unit = { delay(it) },
+    private val secondaryFeedback: AssignmentSecondaryFeedback? = null
 ) : AssignmentOrchestrator {
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     override suspend fun preflight(intent: AssignmentIntent): AssignmentPreflight {
@@ -189,18 +193,79 @@ class DefaultAssignmentOrchestrator(
                 AssignmentWorkflowFailure.ConfirmationRequired(preflight.reason)
             )
             is AssignmentPreflight.Ready -> {
-                // The immutable command is captured once: retries must reuse it, never a later mutable UI/cache value.
                 val command = preflight.command
-                when (val post = applicationScope.async { poster.post(command) }.await()) {
-                    is BambuddyNetworkResult.Failure -> return AssignmentResult.Failure(
-                        AssignmentWorkflowFailure.Network(post.error)
-                    )
-                    is BambuddyNetworkResult.Success -> Unit
-                }
-                // Deliberately fail closed until exact GET verification is performed by the next stage.
-                AssignmentResult.Failure(AssignmentWorkflowFailure.VerificationRequired)
+                // The application-scoped operation must finish ambiguity resolution after its first POST is scheduled.
+                applicationScope.async { postThenVerify(command) }.await()
             }
         }
+
+    @Suppress("ReturnCount")
+    private suspend fun postThenVerify(command: AssignmentCommand): AssignmentResult {
+        for (retryDelay in POST_RETRY_DELAYS_MILLIS) {
+            when (val post = poster.post(command)) {
+                is BambuddyNetworkResult.Success -> return verify(command)
+                is BambuddyNetworkResult.Failure -> if (!post.error.isRetryablePostFailure()) {
+                    return AssignmentResult.Failure(AssignmentWorkflowFailure.Network(post.error))
+                }
+            }
+            wait(retryDelay)
+        }
+
+        return when (val finalPost = poster.post(command)) {
+            is BambuddyNetworkResult.Success -> verify(command)
+            is BambuddyNetworkResult.Failure -> AssignmentResult.Failure(
+                AssignmentWorkflowFailure.Network(finalPost.error)
+            )
+        }
+    }
+
+    /** Verification is read-only and never transitions back to POST, including after a GET failure or mismatch. */
+    @Suppress("ReturnCount")
+    private suspend fun verify(command: AssignmentCommand): AssignmentResult {
+        var lastReadFailure: BambuddyNetworkError? = null
+        for (pollDelay in VERIFY_POLL_DELAYS_MILLIS) {
+            if (pollDelay > 0) wait(pollDelay)
+            when (val assignmentsResult = repository.getAssignments(command.slot.printerId)) {
+                is BambuddyNetworkResult.Failure -> lastReadFailure = assignmentsResult.error
+                is BambuddyNetworkResult.Success -> exactVerification(command, assignmentsResult.value)?.let { result ->
+                    (result as? AssignmentResult.Success)?.let { secondaryFeedback?.reportVerifiedSuccess(it.outcome) }
+                    return result
+                }
+            }
+        }
+        lastReadFailure?.let { return AssignmentResult.Failure(AssignmentWorkflowFailure.Network(it)) }
+        return AssignmentResult.Failure(
+            VerificationMismatch(
+                expectedSpoolId = command.spoolId,
+                expectedSlot = command.slot,
+                reason = VerificationMismatchReason.MissingAssignment
+            )
+        )
+    }
+
+    @Suppress("ReturnCount")
+    private fun exactVerification(command: AssignmentCommand, assignments: List<Assignment>): AssignmentResult? {
+        val targetAssignments = assignments.filter { it.slot == command.slot }
+        if (targetAssignments.size > 1) {
+            return AssignmentResult.Failure(
+                VerificationMismatch(command.spoolId, command.slot, VerificationMismatchReason.DuplicateSlotAssignments)
+            )
+        }
+        val target = targetAssignments.singleOrNull() ?: return null
+        if (target.spoolId != command.spoolId) return null
+        val outcome = when {
+            target.pendingConfiguration -> AssignedConfigurationPending(command.spoolId, command.slot)
+            target.configured -> AssignedAndConfigured(command.spoolId, command.slot)
+            else -> AssignedInventoryOnly(command.spoolId, command.slot)
+        }
+        return AssignmentResult.Success(outcome)
+    }
+
+    private fun BambuddyNetworkError.isRetryablePostFailure(): Boolean = when (this) {
+        is BambuddyNetworkError.HttpServerError -> statusCode in 500..599
+        is BambuddyNetworkError.Transport -> reason in RETRYABLE_TRANSPORT_FAILURES
+        else -> false
+    }
 
     private fun <T> BambuddyNetworkResult<T>.preflightValue(): T? = (this as? BambuddyNetworkResult.Success)?.value
 
@@ -209,3 +274,11 @@ class DefaultAssignmentOrchestrator(
         is BambuddyNetworkResult.Success -> error("A successful result cannot be converted into a failure.")
     }
 }
+
+private val POST_RETRY_DELAYS_MILLIS = listOf(500L, 1_000L, 2_000L)
+private val VERIFY_POLL_DELAYS_MILLIS = listOf(0L, 200L, 500L)
+private val RETRYABLE_TRANSPORT_FAILURES = setOf(
+    com.murzify.bambuddyspool.core.network.TransportFailureReason.ConnectTimeout,
+    com.murzify.bambuddyspool.core.network.TransportFailureReason.RequestTimeout,
+    com.murzify.bambuddyspool.core.network.TransportFailureReason.NetworkUnavailable
+)

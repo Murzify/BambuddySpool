@@ -2,6 +2,12 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[007]` with strict, virtual-time-covered assignment POST retries and exact verification. The
+  orchestrator sends at most four identical POSTs at the specified 500 ms, 1 s, and 2 s retry boundaries, only for
+  retryable transport/5xx failures, without a pre-retry GET.
+- Added target-printer assignment polling immediately, at +200 ms, and +500 ms. Only one exact SlotKey/spool match
+  produces a typed configured, pending-configuration, or inventory-only success; duplicate slot state and HTTP-only
+  success fail closed, and verification never sends another POST.
 - Completed `[CODE]-[006]` with one shared, transient combined-assignment confirmation surface. It presents the
   spool, every known current location, target printer and slot, target replacement, and final assign or move-and-
   assign effect together; replacement alone is secondary information and does not create another confirmation.
