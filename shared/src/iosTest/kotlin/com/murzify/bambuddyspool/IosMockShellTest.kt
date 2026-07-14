@@ -20,7 +20,7 @@ class IosMockShellTest {
     fun sharedRootStartsAndNavigatesWithIosMocks() {
         val graph = createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = iosMockPlatformServices()
+            nfcService = iosMockPlatformServices().nfc
         )
 
         assertEquals(HomeNfcState.Unavailable, graph.rootComponent.state.value.nfcState)

@@ -3,11 +3,7 @@ package com.murzify.bambuddyspool.core.platform
 import com.murzify.bambuddyspool.core.security.SecretValue
 import kotlinx.coroutines.Dispatchers
 
-/**
- * Creates deterministic no-op services for the Stage 1 platform shells and architecture tests.
- *
- * These bindings do not accept credentials, perform network requests, or access NFC hardware.
- */
+/** Deterministic test-only platform bindings; production shells must supply real capabilities. */
 fun mockPlatformServices(): PlatformServices = PlatformServices(
     secureStorage = object : SecureStorage {
         override suspend fun replaceToken(value: SecretValue) = Unit
@@ -17,7 +13,7 @@ fun mockPlatformServices(): PlatformServices = PlatformServices(
     },
     nfc = object : NfcService {
         override val isAvailable: Boolean = false
-        override suspend fun read(): NfcObservation = error("NFC is unavailable in the mock shell")
+        override suspend fun read(): NfcObservation = error("NFC is unavailable in this test binding")
     },
     settings = object : PlatformSettingsNavigator {
         override fun openNfcSettings() = Unit

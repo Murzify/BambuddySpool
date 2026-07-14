@@ -5,8 +5,6 @@ import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.murzify.bambuddyspool.app.App
@@ -14,7 +12,6 @@ import com.murzify.bambuddyspool.app.bootstrap.createRootGraph
 import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.core.performance.ColdLaunchProcessingTiming
 import com.murzify.bambuddyspool.core.performance.MonotonicClock
-import com.murzify.bambuddyspool.core.platform.mockPlatformServices
 
 /** Thin Android launcher that owns lifecycle wiring and renders the shared root. */
 class MainActivity : ComponentActivity() {
@@ -23,7 +20,7 @@ class MainActivity : ComponentActivity() {
     private val root by lazy {
         createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = mockPlatformServices().copy(nfc = AndroidNfcService(applicationContext))
+            nfcService = AndroidNfcService(applicationContext)
         ).rootComponent
     }
 
@@ -56,15 +53,4 @@ class MainActivity : ComponentActivity() {
             root.accept(RootIntent.BeginNfcScan(observation))
         }
     }
-}
-
-@Preview
-@Composable
-@Suppress("FunctionNaming") // Compose entry points use UpperCamelCase by convention.
-private fun AppAndroidPreview() {
-    val root = createRootGraph(
-        componentContext = DefaultComponentContext(LifecycleRegistry()),
-        platformServices = mockPlatformServices()
-    ).rootComponent
-    App(root)
 }

@@ -2,6 +2,13 @@
 
 ## 2026-07-15
 
+- Completed `[CODE]-[015]` by removing the Android shell's temporary `mockPlatformServices()` production bootstrap.
+  Android now supplies only its real NFC capability to the shared root; the unused application graph and unimplemented
+  production service bindings are gone. The deterministic aggregate fake moved to `commonTest`, while the required
+  iOS mock shell remains iOS-only and fail-closed.
+- Removed the Android Preview/tooling dependency pair and empty feature-boundary marker files. Assignment and NFC
+  code paths remain singular, with no production inventory, assignment, or mutation fake data introduced.
+
 - Completed `[CODE]-[014]` with a launchable Swift/Xcode wrapper around the shared Compose root and a dedicated iOS
   mock platform graph. Root navigation executes in shared Kotlin code; the mock shell has no Swift product screens.
 - iOS-only platform bindings now fail closed for NFC, credential storage, and network creation, return no clipboard

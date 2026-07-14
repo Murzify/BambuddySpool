@@ -230,7 +230,7 @@ Compile both iOS targets, run shared tests, render the shared root, and provide 
 Task DOD
 iOS shell launches and navigates shared UI; unsupported actions are disabled; Simulator smoke passes; Android dependencies do not leak into common code.
 
-- [ ] [CODE]-[015] Remove Feature Debris
+- [x] [CODE]-[015] Remove Feature Debris
 Task Context
 Remove prototypes, duplicate screens, temporary production fakes, unreachable states, debug buttons, obsolete routes/resources, and unused dependencies while retaining required test fakes and iOS mocks.
 Task DOD

@@ -12,7 +12,7 @@ import com.murzify.bambuddyspool.core.platform.iosMockPlatformServices
 fun MainViewController() = ComposeUIViewController {
     val root = createRootGraph(
         componentContext = DefaultComponentContext(LifecycleRegistry()),
-        platformServices = iosMockPlatformServices()
+        nfcService = iosMockPlatformServices().nfc
     ).rootComponent
     App(root)
 }
