@@ -26,6 +26,7 @@ import com.murzify.bambuddyspool.app.root.HomeNfcState
 import com.murzify.bambuddyspool.app.root.RootComponent
 import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.app.root.RootState
+import com.murzify.bambuddyspool.feature.printers.PrintersScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
 import com.murzify.bambuddyspool.shared.resources.Res
 import com.murzify.bambuddyspool.shared.resources.home_connection_not_configured
@@ -40,7 +41,6 @@ import com.murzify.bambuddyspool.shared.resources.navigation_home
 import com.murzify.bambuddyspool.shared.resources.navigation_printers
 import com.murzify.bambuddyspool.shared.resources.navigation_settings
 import com.murzify.bambuddyspool.shared.resources.navigation_spools
-import com.murzify.bambuddyspool.shared.resources.placeholder_printers
 import com.murzify.bambuddyspool.shared.resources.placeholder_settings
 import com.murzify.bambuddyspool.shared.resources.workflow_confirmation
 import com.murzify.bambuddyspool.shared.resources.workflow_error
@@ -100,7 +100,7 @@ private fun RootContent(state: RootState, root: RootComponent, modifier: Modifie
         when (state.destination) {
             RootDestination.Home -> HomeScreen(state)
             RootDestination.Spools -> SpoolsScreen(root.spoolsComponent, root::accept)
-            RootDestination.Printers -> Text(stringResource(Res.string.placeholder_printers))
+            RootDestination.Printers -> PrintersScreen(root.printersComponent, state.pendingManualSpoolId, root::accept)
             RootDestination.Settings -> Text(stringResource(Res.string.placeholder_settings))
         }
         state.transientWorkflow?.let { Text(stringResource(it.label())) }

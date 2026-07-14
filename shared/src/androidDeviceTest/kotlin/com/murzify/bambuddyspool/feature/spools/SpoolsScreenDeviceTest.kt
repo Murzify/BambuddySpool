@@ -1,11 +1,15 @@
 package com.murzify.bambuddyspool.feature.spools
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
@@ -27,6 +31,25 @@ import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalTestApi::class)
 class SpoolsScreenDeviceTest {
+    @Test
+    fun filtersRemainReadableAtCompactWidth() = runComposeUiTest {
+        val spool = SpoolSummaryProjection(
+            requireNotNull(SpoolId.from(8)),
+            "Carbon", null, "PLA", "Black", 450, null, null, null
+        )
+        setContent {
+            androidx.compose.foundation.layout.BoxWithConstraints(
+                modifier = androidx.compose.ui.Modifier.width(320.dp)
+            ) {
+                SpoolsScreen(component(spool, available = true), {})
+            }
+        }
+
+        onNodeWithText("Include inactive").assertIsDisplayed()
+        onNodeWithText("Include archived").assertIsDisplayed()
+        onNodeWithText("Include empty").assertIsDisplayed()
+    }
+
     @Test
     fun freshActionsAreEnabledAndStaleActionsAreDisabled() = runComposeUiTest {
         val spool =

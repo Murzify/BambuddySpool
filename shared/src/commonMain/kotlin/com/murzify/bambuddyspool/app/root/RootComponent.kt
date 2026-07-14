@@ -10,8 +10,14 @@ import com.murzify.bambuddyspool.core.application.ComponentScope
 import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
+import com.murzify.bambuddyspool.core.domain.AssignmentSource
+import com.murzify.bambuddyspool.core.domain.SlotKey
+import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
+import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
+import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
+import com.murzify.bambuddyspool.feature.printers.PrintersComponent
 import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -52,7 +58,9 @@ data class RootState(
     val destination: RootDestination = RootDestination.Home,
     val connectionState: HomeConnectionState = HomeConnectionState.NotConfigured,
     val nfcState: HomeNfcState = HomeNfcState.Unavailable,
-    val transientWorkflow: RootTransientWorkflow? = null
+    val transientWorkflow: RootTransientWorkflow? = null,
+    val pendingManualSpoolId: SpoolId? = null,
+    val assignmentIntent: AssignmentIntent? = null
 )
 
 /** Inputs accepted by the shared root component. */
@@ -61,6 +69,14 @@ sealed interface RootIntent {
     data class OpenDetail(val destination: RootDestination, val id: Long) : RootIntent
     data class UpdateHomeStatus(val connectionState: HomeConnectionState, val nfcState: HomeNfcState) : RootIntent
     data class StartManualAssignment(val spoolId: Long) : RootIntent
+    data class CreateManualAssignment(
+        val spoolId: SpoolId,
+        val slot: SlotKey,
+        val expectedSnapshotGeneration: SnapshotGeneration
+    ) : RootIntent
+
+    /** Shared hand-off used by manual and future NFC resolution; it must stay transient. */
+    data class StartAssignment(val intent: AssignmentIntent) : RootIntent
     data class StartTagLink(val spoolId: Long?) : RootIntent
 
     data class ShowTransient(val workflow: RootTransientWorkflow) : RootIntent
@@ -99,13 +115,42 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
 
         is RootIntent.StartManualAssignment -> {
             require(intent.spoolId > 0) { "Spool identifiers must be positive." }
-            Reduction(state.copy(transientWorkflow = RootTransientWorkflow.Processing))
+            Reduction(
+                state.copy(
+                    destination = RootDestination.Printers,
+                    pendingManualSpoolId = requireNotNull(SpoolId.from(intent.spoolId)),
+                    transientWorkflow = null,
+                    assignmentIntent = null
+                ),
+                listOf(RootEffect.Navigate(RootDestination.Printers))
+            )
         }
+
+        is RootIntent.CreateManualAssignment -> Reduction(
+            state.copy(
+                pendingManualSpoolId = null,
+                transientWorkflow = RootTransientWorkflow.Processing,
+                assignmentIntent = AssignmentIntent(
+                    spoolId = intent.spoolId,
+                    slot = intent.slot,
+                    source = AssignmentSource.Manual,
+                    expectedSnapshotGeneration = intent.expectedSnapshotGeneration
+                )
+            )
+        )
+
+        is RootIntent.StartAssignment -> Reduction(
+            state.copy(
+                pendingManualSpoolId = null,
+                transientWorkflow = RootTransientWorkflow.Processing,
+                assignmentIntent = intent.intent
+            )
+        )
 
         is RootIntent.StartTagLink -> Reduction(state.copy(transientWorkflow = RootTransientWorkflow.TagMutation))
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
-        RootIntent.DismissTransient -> Reduction(state.copy(transientWorkflow = null))
+        RootIntent.DismissTransient -> Reduction(state.copy(transientWorkflow = null, assignmentIntent = null))
     }
 }
 
@@ -164,6 +209,9 @@ class RootComponent(
     UdfComponent<RootState, RootIntent> {
     /** The shared browser owns safe search/filter/detail restoration for the Spools destination. */
     val spoolsComponent = SpoolsComponent(componentContext, spoolProjectionRepository)
+
+    /** The shared printer browser uses only Room-backed cache projections. */
+    val printersComponent = PrintersComponent(componentContext, spoolProjectionRepository)
     private val navigation = StackNavigation<RootConfig>()
     private val destinationComponents = mutableMapOf<RootDestination, DestinationStackComponent>()
     private val restored = stateKeeper.consume("root-navigation", RestoredRootState.serializer())

@@ -4,6 +4,9 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.statekeeper.StateKeeperDispatcher
 import com.murzify.bambuddyspool.app.navigation.RootDestination
+import com.murzify.bambuddyspool.core.domain.SlotKey
+import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
+import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
@@ -58,6 +61,27 @@ class RootComponentTest {
         assertEquals(HomeConnectionState.Stale, workflow.state.connectionState)
         assertEquals(HomeNfcState.Disabled, workflow.state.nfcState)
         assertEquals(RootTransientWorkflow.Error, workflow.state.transientWorkflow)
+    }
+
+    @Test
+    fun manualSelectionCreatesTransientSharedAssignmentIntentAndNeverRestoresIt() {
+        val stateKeeper = StateKeeperDispatcher()
+        val first = component(stateKeeper)
+        val spool = requireNotNull(SpoolId.from(4))
+        val slot = requireNotNull(SlotKey.from(1, 255, 0))
+        val generation = requireNotNull(SnapshotGeneration.from(2))
+
+        first.accept(RootIntent.StartManualAssignment(spool.value))
+        first.accept(RootIntent.CreateManualAssignment(spool, slot, generation))
+
+        assertEquals(RootDestination.Printers, first.state.value.destination)
+        assertEquals(spool, first.state.value.assignmentIntent?.spoolId)
+        assertEquals(slot, first.state.value.assignmentIntent?.slot)
+        assertNull(first.state.value.pendingManualSpoolId)
+
+        val restored = component(StateKeeperDispatcher(stateKeeper.save()))
+        assertNull(restored.state.value.assignmentIntent)
+        assertNull(restored.state.value.pendingManualSpoolId)
     }
 
     private fun component(stateKeeper: StateKeeperDispatcher): RootComponent = RootComponent(

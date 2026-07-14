@@ -4,8 +4,10 @@ package com.murzify.bambuddyspool.feature.spools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -88,7 +90,11 @@ fun SpoolsScreen(component: SpoolsComponent, acceptRoot: (RootIntent) -> Unit) {
 }
 
 @Composable
-private fun SpoolFilters(filters: SpoolListFilters, changed: (SpoolListFilters) -> Unit) = Row {
+private fun SpoolFilters(filters: SpoolListFilters, changed: (SpoolListFilters) -> Unit) = FlowRow(
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalArrangement = Arrangement.spacedBy(4.dp),
+    modifier = Modifier.fillMaxWidth()
+) {
     ToggleFilter(stringResource(Res.string.spools_include_inactive), filters.includeInactive) {
         changed(filters.copy(includeInactive = it))
     }
@@ -101,11 +107,13 @@ private fun SpoolFilters(filters: SpoolListFilters, changed: (SpoolListFilters) 
 }
 
 @Composable
-private fun ToggleFilter(label: String, value: Boolean, changed: (Boolean) -> Unit) =
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(value, changed)
-        Text(label, style = MaterialTheme.typography.labelMedium)
-    }
+private fun ToggleFilter(label: String, value: Boolean, changed: (Boolean) -> Unit) = Row(
+    verticalAlignment = Alignment.CenterVertically,
+    modifier = Modifier.heightIn(min = 48.dp)
+) {
+    Checkbox(value, changed)
+    Text(label, style = MaterialTheme.typography.labelMedium)
+}
 
 @Composable
 private fun SpoolList(

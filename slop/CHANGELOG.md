@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+- Completed `[CODE]-[004]` with shared Room-projection printer and slot screens. External slots are the only
+  selectable manual-assignment targets; AMS slots are visibly read-only and unknown, stale, offline, or unsupported
+  topology leaves mutation disabled.
+- Added the transient common `AssignmentIntent` boundary used by manual selection and reserved for NFC resolution;
+  it carries the validated snapshot generation but is never serialized, restored, or replayed.
+- Fixed the compact-width Spools-filter regression: filter controls now flow across rows with 48 dp targets, backed
+  by a narrow-width Compose regression test.
 - Completed `[CODE]-[003]` with a shared resource-backed Spools browser and details surface, safe restoration of
   query/filter/detail state, Room-projection search integration, and the indexed 100-item lazy page suitable for
   large inventories.

@@ -164,7 +164,7 @@ Implement default and extended filters, 150ms cancellable search, specified sort
 Task DOD
 The lazy list handles 25k records; filters restore; offline content remains viewable while mutation is disabled; resources, semantics, reducer tests, and UI tests cover all actions.
 
-- [ ] [CODE]-[004] Implement Printers and Manual Assignment Entry
+- [x] [CODE]-[004] Implement Printers and Manual Assignment Entry
 Task Context
 Show assignment-relevant printer details. External slots are labeled/selectable; AMS is visible read-only; unknown topology blocks mutation. Manual assignment creates the same AssignmentIntent used by NFC.
 Task DOD
