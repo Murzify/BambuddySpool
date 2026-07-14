@@ -5,4 +5,5 @@ interface SecureTokenStore {
     suspend fun replaceToken(value: SecretValue)
     suspend fun clearToken()
     suspend fun hasToken(): Boolean
+    suspend fun currentTokenForReplacement(): SecretValue?
 }

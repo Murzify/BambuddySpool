@@ -13,7 +13,7 @@ class ConnectionReplacementService(
     private val settingsStore: ConnectionSettingsStore,
     private val tokenStore: SecureTokenStore,
     private val validator: ConnectionValidator,
-    private val replacementTransaction: ConnectionReplacementTransaction,
+    private val cacheMaintenance: ConnectionCacheMaintenance,
     private val initialSync: InitialConnectionSync
 ) {
 
@@ -55,7 +55,7 @@ class ConnectionReplacementService(
             null
         }
 
-        replacementTransaction.commit(
+        CompensatingConnectionReplacementTransaction(settingsStore, tokenStore, cacheMaintenance).commit(
             activeSettings.forConnectionReplacement(
                 newBaseUrl = newBaseUrl,
                 httpConsentOrigin = httpConsentOrigin
@@ -123,6 +123,33 @@ enum class ConnectionValidationFailureReason {
 /** Durable all-or-nothing boundary for settings, credential, default reset, consent reset, and cache clearing. */
 interface ConnectionReplacementTransaction {
     suspend fun commit(settings: ConnectionSettings, token: SecretValue)
+}
+
+interface ConnectionCacheMaintenance {
+    suspend fun clearDomainSnapshot()
+}
+
+private class CompensatingConnectionReplacementTransaction(
+    private val settings: ConnectionSettingsStore,
+    private val tokens: SecureTokenStore,
+    private val cache: ConnectionCacheMaintenance
+) : ConnectionReplacementTransaction {
+    override suspend fun commit(settings: ConnectionSettings, token: SecretValue) {
+        val oldSettings = this.settings.read()
+        val oldToken = tokens.currentTokenForReplacement()
+        try {
+            this.settings.replace(settings)
+            tokens.replaceToken(token)
+            cache.clearDomainSnapshot()
+        } catch (failure: Throwable) {
+            restore(oldSettings, oldToken)
+            throw failure
+        }
+    }
+    private suspend fun restore(settings: ConnectionSettings, token: SecretValue?) {
+        this.settings.replace(settings)
+        if (token == null) tokens.clearToken() else tokens.replaceToken(token)
+    }
 }
 
 interface InitialConnectionSync {

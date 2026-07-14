@@ -264,7 +264,7 @@ class ConnectionReplacementServiceTest {
         settingsStore = settings,
         tokenStore = tokenStore,
         validator = validator,
-        replacementTransaction = cache,
+        cacheMaintenance = cache,
         initialSync = sync
     )
 
@@ -299,6 +299,7 @@ private class FakeTokenStore(initial: SecretValue? = null) : SecureTokenStore {
     }
 
     override suspend fun hasToken(): Boolean = currentToken != null
+    override suspend fun currentTokenForReplacement(): SecretValue? = currentToken
 }
 
 private class FakeValidator(
@@ -320,13 +321,11 @@ private class FakeValidator(
 private class FakeReplacementTransaction(
     private val settingsStore: FakeSettingsStore,
     private val tokenStore: FakeTokenStore
-) : ConnectionReplacementTransaction {
+) : ConnectionCacheMaintenance {
     var clearCount: Int = 0
         private set
 
-    override suspend fun commit(settings: ConnectionSettings, token: SecretValue) {
-        settingsStore.replace(settings)
-        tokenStore.replaceToken(token)
+    override suspend fun clearDomainSnapshot() {
         clearCount++
     }
 }

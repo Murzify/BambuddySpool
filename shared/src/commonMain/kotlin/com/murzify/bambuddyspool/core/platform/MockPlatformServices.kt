@@ -13,6 +13,7 @@ fun mockPlatformServices(): PlatformServices = PlatformServices(
         override suspend fun replaceToken(value: SecretValue) = Unit
         override suspend fun clearToken() = Unit
         override suspend fun hasToken(): Boolean = false
+        override suspend fun currentTokenForReplacement(): SecretValue? = null
     },
     nfc = object : NfcService {
         override val isAvailable: Boolean = false
