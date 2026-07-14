@@ -236,7 +236,7 @@ Remove prototypes, duplicate screens, temporary production fakes, unreachable st
 Task DOD
 Only one assignment/NFC implementation exists; production contains no fake data or dead route; Android/iOS builds and feature tests pass; out-of-scope features are absent.
 
-- [ ] [CODE]-[016] Deduplicate UI and Orchestration
+- [x] [CODE]-[016] Deduplicate UI and Orchestration
 Task Context
 Unify NFC/manual assignment, setup/settings connection, result/error surfaces, responsive navigation, and tag operations where semantics match. Avoid god components and speculative frameworks.
 Task DOD

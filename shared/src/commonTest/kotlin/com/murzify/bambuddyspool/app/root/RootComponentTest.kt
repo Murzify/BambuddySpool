@@ -85,6 +85,32 @@ class RootComponentTest {
     }
 
     @Test
+    fun nfcAssignmentKeepsTheLiveSessionWhileManualAssignmentClearsIt() {
+        val first = component(StateKeeperDispatcher())
+        val spool = requireNotNull(SpoolId.from(4))
+        val slot = requireNotNull(SlotKey.from(1, 255, 0))
+        val generation = requireNotNull(SnapshotGeneration.from(2))
+        val observation = NfcObservation("0102", "bambuddy-spool://spool/4", 10L)
+
+        first.accept(RootIntent.BeginNfcScan(observation))
+        first.accept(
+            RootIntent.StartAssignment(
+                com.murzify.bambuddyspool.feature.assignment.AssignmentIntent.nfc(spool, slot, generation)
+            )
+        )
+        assertEquals(1L, first.state.value.activeNfcSessionId?.value)
+        assertEquals(observation, first.state.value.pendingNfcObservation)
+
+        first.accept(
+            RootIntent.StartAssignment(
+                com.murzify.bambuddyspool.feature.assignment.AssignmentIntent.manual(spool, slot, generation)
+            )
+        )
+        assertNull(first.state.value.activeNfcSessionId)
+        assertNull(first.state.value.pendingNfcObservation)
+    }
+
+    @Test
     fun nfcScanStartsProcessingAndNeverRestoresItsPlatformNeutralObservation() {
         val stateKeeper = StateKeeperDispatcher()
         val first = component(stateKeeper)

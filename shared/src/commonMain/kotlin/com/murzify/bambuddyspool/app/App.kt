@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -33,10 +32,9 @@ import com.murzify.bambuddyspool.app.root.HomeNfcState
 import com.murzify.bambuddyspool.app.root.RootComponent
 import com.murzify.bambuddyspool.app.root.RootIntent
 import com.murzify.bambuddyspool.app.root.RootState
-import com.murzify.bambuddyspool.app.ui.FocusedStatusTitle
 import com.murzify.bambuddyspool.app.ui.MinimumInteractiveTarget
 import com.murzify.bambuddyspool.app.ui.UiWidthClass
-import com.murzify.bambuddyspool.app.ui.processingAnnouncement
+import com.murzify.bambuddyspool.app.ui.WorkflowFeedbackSurface
 import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmationDialog
 import com.murzify.bambuddyspool.feature.printers.PrintersScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
@@ -54,11 +52,6 @@ import com.murzify.bambuddyspool.shared.resources.navigation_printers
 import com.murzify.bambuddyspool.shared.resources.navigation_settings
 import com.murzify.bambuddyspool.shared.resources.navigation_spools
 import com.murzify.bambuddyspool.shared.resources.placeholder_settings
-import com.murzify.bambuddyspool.shared.resources.workflow_confirmation
-import com.murzify.bambuddyspool.shared.resources.workflow_error
-import com.murzify.bambuddyspool.shared.resources.workflow_processing
-import com.murzify.bambuddyspool.shared.resources.workflow_success
-import com.murzify.bambuddyspool.shared.resources.workflow_tag_mutation
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -84,14 +77,16 @@ fun App(root: RootComponent, onProcessingComposed: () -> Unit = {}) {
     }
 }
 
+private data class PrimaryNavigationItem(val destination: RootDestination, val selected: Boolean)
+
 @Composable
 private fun BottomNavigation(selected: RootDestination, accept: (RootIntent) -> Unit) = NavigationBar {
-    RootDestination.entries.forEach { destination ->
+    primaryNavigationItems(selected).forEach { item ->
         NavigationBarItem(
-            selected = selected == destination,
-            onClick = { accept(RootIntent.Select(destination)) },
+            selected = item.selected,
+            onClick = { accept(RootIntent.Select(item.destination)) },
             icon = {},
-            label = { Text(stringResource(destination.label())) },
+            label = { Text(stringResource(item.destination.label())) },
             modifier = MinimumInteractiveTarget.semantics { role = Role.Tab }
         )
     }
@@ -99,16 +94,20 @@ private fun BottomNavigation(selected: RootDestination, accept: (RootIntent) -> 
 
 @Composable
 private fun RailNavigation(selected: RootDestination, accept: (RootIntent) -> Unit) = NavigationRail {
-    RootDestination.entries.forEach { destination ->
+    primaryNavigationItems(selected).forEach { item ->
         NavigationRailItem(
-            selected = selected == destination,
-            onClick = { accept(RootIntent.Select(destination)) },
+            selected = item.selected,
+            onClick = { accept(RootIntent.Select(item.destination)) },
             icon = {},
-            label = { Text(stringResource(destination.label())) },
+            label = { Text(stringResource(item.destination.label())) },
             modifier = MinimumInteractiveTarget.semantics { role = Role.Tab }
         )
     }
 }
+
+/** The two Material containers share one destination ordering and selection calculation. */
+private fun primaryNavigationItems(selected: RootDestination): List<PrimaryNavigationItem> =
+    RootDestination.entries.map { destination -> PrimaryNavigationItem(destination, destination == selected) }
 
 @Composable
 private fun RootContent(
@@ -129,16 +128,7 @@ private fun RootContent(
             RootDestination.Settings -> Text(stringResource(Res.string.placeholder_settings))
         }
         state.transientWorkflow?.let { workflow ->
-            val label = stringResource(workflow.label())
-            when (workflow) {
-                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Processing -> {
-                    LaunchedEffect(Unit) { onProcessingComposed() }
-                    Text(label, modifier = Modifier.processingAnnouncement())
-                }
-                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Success,
-                com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Error -> FocusedStatusTitle(label)
-                else -> Text(label)
-            }
+            WorkflowFeedbackSurface(workflow, onProcessingComposed)
         }
         state.assignmentConfirmation?.let { confirmation ->
             CombinedAssignmentConfirmationDialog(
@@ -175,12 +165,4 @@ private fun HomeNfcState.label(): StringResource = when (this) {
     HomeNfcState.Available -> Res.string.home_nfc_available
     HomeNfcState.Unavailable -> Res.string.home_nfc_unavailable
     HomeNfcState.Disabled -> Res.string.home_nfc_disabled
-}
-
-private fun com.murzify.bambuddyspool.app.root.RootTransientWorkflow.label(): StringResource = when (this) {
-    com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Processing -> Res.string.workflow_processing
-    com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Confirmation -> Res.string.workflow_confirmation
-    com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Success -> Res.string.workflow_success
-    com.murzify.bambuddyspool.app.root.RootTransientWorkflow.Error -> Res.string.workflow_error
-    com.murzify.bambuddyspool.app.root.RootTransientWorkflow.TagMutation -> Res.string.workflow_tag_mutation
 }

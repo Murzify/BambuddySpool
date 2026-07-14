@@ -16,4 +16,14 @@ data class AssignmentIntent(
     val slot: SlotKey,
     val source: AssignmentSource,
     val expectedSnapshotGeneration: SnapshotGeneration
-)
+) {
+    companion object {
+        /** Manual selection enters the same orchestration boundary as a resolved NFC scan. */
+        fun manual(spoolId: SpoolId, slot: SlotKey, expectedSnapshotGeneration: SnapshotGeneration): AssignmentIntent =
+            AssignmentIntent(spoolId, slot, AssignmentSource.Manual, expectedSnapshotGeneration)
+
+        /** NFC resolution differs only by provenance; its freshness and mutation rules are identical. */
+        fun nfc(spoolId: SpoolId, slot: SlotKey, expectedSnapshotGeneration: SnapshotGeneration): AssignmentIntent =
+            AssignmentIntent(spoolId, slot, AssignmentSource.NfcScan, expectedSnapshotGeneration)
+    }
+}

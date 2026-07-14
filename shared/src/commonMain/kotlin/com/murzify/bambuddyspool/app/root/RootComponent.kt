@@ -84,13 +84,15 @@ sealed interface RootIntent {
     data class OpenDetail(val destination: RootDestination, val id: Long) : RootIntent
     data class UpdateHomeStatus(val connectionState: HomeConnectionState, val nfcState: HomeNfcState) : RootIntent
     data class StartManualAssignment(val spoolId: Long) : RootIntent
+
+    /** Manual UI adapter; it constructs no business rule and delegates to the shared assignment boundary. */
     data class CreateManualAssignment(
         val spoolId: SpoolId,
         val slot: SlotKey,
         val expectedSnapshotGeneration: SnapshotGeneration
     ) : RootIntent
 
-    /** Shared hand-off used by manual and future NFC resolution; it must stay transient. */
+    /** Shared hand-off used by manual and NFC resolution; it must stay transient. */
     data class StartAssignment(val intent: AssignmentIntent) : RootIntent
 
     /** Platform-neutral NFC entry hand-off; Android objects must never cross this boundary. */
@@ -154,30 +156,12 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
         }
 
         is RootIntent.CreateManualAssignment -> Reduction(
-            state.copy(
-                pendingManualSpoolId = null,
-                transientWorkflow = RootTransientWorkflow.Processing,
-                pendingNfcObservation = null,
-                activeNfcSessionId = null,
-                assignmentIntent = AssignmentIntent(
-                    spoolId = intent.spoolId,
-                    slot = intent.slot,
-                    source = AssignmentSource.Manual,
-                    expectedSnapshotGeneration = intent.expectedSnapshotGeneration
-                ),
-                assignmentConfirmation = null
+            state.beginAssignment(
+                AssignmentIntent.manual(intent.spoolId, intent.slot, intent.expectedSnapshotGeneration)
             )
         )
 
-        is RootIntent.StartAssignment -> Reduction(
-            state.copy(
-                pendingManualSpoolId = null,
-                transientWorkflow = RootTransientWorkflow.Processing,
-                activeNfcSessionId = null,
-                assignmentIntent = intent.intent,
-                assignmentConfirmation = null
-            )
-        )
+        is RootIntent.StartAssignment -> Reduction(state.beginAssignment(intent.intent))
 
         is RootIntent.BeginNfcScan -> {
             require(intent.observation.fingerprint.isNotBlank()) { "NFC fingerprints must not be blank." }
@@ -234,6 +218,25 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             )
         )
     }
+}
+
+/**
+ * The assignment orchestrator receives exactly one request shape. NFC retains its live scan identity until the
+ * POST boundary; manual entry clears NFC-only data. No source gets separate freshness, confirmation, or POST rules.
+ */
+private fun RootState.beginAssignment(intent: AssignmentIntent): RootState {
+    val retainsNfcSession = intent.source == AssignmentSource.NfcScan
+    check(!retainsNfcSession || activeNfcSessionId != null) {
+        "NFC assignment must originate from a live NFC session."
+    }
+    return copy(
+        pendingManualSpoolId = null,
+        transientWorkflow = RootTransientWorkflow.Processing,
+        pendingNfcObservation = pendingNfcObservation.takeIf { retainsNfcSession },
+        activeNfcSessionId = activeNfcSessionId.takeIf { retainsNfcSession },
+        assignmentIntent = intent,
+        assignmentConfirmation = null
+    )
 }
 
 @Serializable

@@ -43,17 +43,25 @@ import com.murzify.bambuddyspool.shared.resources.connection_required_fields
 import com.murzify.bambuddyspool.shared.resources.connection_save
 import com.murzify.bambuddyspool.shared.resources.connection_save_succeeded
 import com.murzify.bambuddyspool.shared.resources.connection_saving
+import com.murzify.bambuddyspool.shared.resources.connection_settings_title
+import com.murzify.bambuddyspool.shared.resources.connection_setup_title
 import com.murzify.bambuddyspool.shared.resources.connection_test
 import com.murzify.bambuddyspool.shared.resources.connection_test_succeeded
 import com.murzify.bambuddyspool.shared.resources.connection_testing
 import com.murzify.bambuddyspool.shared.resources.connection_tls_failed
+import com.murzify.bambuddyspool.shared.resources.connection_token_status_saved
 import com.murzify.bambuddyspool.shared.resources.connection_unreachable
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-/** One scrollable form reused by first-run setup and Settings. */
+/** One scrollable form reused by first-run Setup and Settings, including their header/status treatment. */
 @Composable
 @Suppress("FunctionNaming", "LongMethod") // Compose entry point and cohesive accessible form layout.
-fun ConnectionFormScreen(component: ConnectionFormComponent, modifier: Modifier = Modifier) {
+fun ConnectionFormScreen(
+    component: ConnectionFormComponent,
+    presentation: ConnectionFormPresentation,
+    modifier: Modifier = Modifier
+) {
     val state by component.state.collectAsState()
     var token by remember { mutableStateOf("") }
     val busy = state.operation != ConnectionFormOperation.Idle
@@ -62,6 +70,14 @@ fun ConnectionFormScreen(component: ConnectionFormComponent, modifier: Modifier 
         modifier = modifier.verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text(
+            stringResource(presentation.title()),
+            modifier = Modifier.semantics { heading() }
+        )
+        (presentation as? ConnectionFormPresentation.Settings)?.let { settings ->
+            settings.configuredUrl?.let { configuredUrl -> Text(configuredUrl) }
+            if (settings.hasSavedToken) Text(stringResource(Res.string.connection_token_status_saved))
+        }
         OutlinedTextField(
             value = state.baseUrl,
             onValueChange = { component.accept(ConnectionFormIntent.BaseUrlChanged(it)) },
@@ -151,6 +167,11 @@ fun ConnectionFormScreen(component: ConnectionFormComponent, modifier: Modifier 
             }
         )
     }
+}
+
+private fun ConnectionFormPresentation.title(): StringResource = when (this) {
+    ConnectionFormPresentation.Setup -> Res.string.connection_setup_title
+    is ConnectionFormPresentation.Settings -> Res.string.connection_settings_title
 }
 
 @Composable

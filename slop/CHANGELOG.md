@@ -2,6 +2,13 @@
 
 ## 2026-07-15
 
+- Completed `[CODE]-[016]` by making `AssignmentIntent` the single common manual/NFC orchestration boundary.
+  Manual selection now delegates through the same root transition; NFC retains only its live, non-restorable scan
+  session until the POST boundary. Freshness, confirmation, retry, POST, and verification remain shared.
+- Consolidated setup/settings form presentation, responsive navigation ordering/selection, and workflow feedback
+  surfaces without adding a framework layer. Android host and iOS Simulator regression suites, formatting, Detekt,
+  Android Lint, and the repository policy gate passed.
+
 - Completed `[CODE]-[015]` by removing the Android shell's temporary `mockPlatformServices()` production bootstrap.
   Android now supplies only its real NFC capability to the shared root; the unused application graph and unimplemented
   production service bindings are gone. The deterministic aggregate fake moved to `commonTest`, while the required
