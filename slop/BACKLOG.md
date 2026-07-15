@@ -281,6 +281,17 @@ credentials stay in the Keystore/short-lived request boundary; a fully validated
 Spools, and Printers; refresh failure rolls back a replacement; HTTP remains fail-closed pending explicit consent;
 deterministic coverage and targeted Android checks pass; process-local persistence limitations are documented.
 
+- [x] [MVP]-[003] Preserve the Contract-Required Printer Collection Path
+Task Context
+Keep the mandatory `GET /api/v1/printers/` collection request as an exact terminal-slash path. An owner-authorized
+read-only contract check established that the slashless collection path returns `404`, while the documented path
+returns `200`. Scope this correction only to the collection request and its deterministic regression coverage; do
+not alter mutations, redirects, TLS policy, or private-instance configuration.
+Task DOD
+`KtorBambuddyRepository` sends the exact terminal-slash collection path, including under a configured base path;
+a deterministic MockEngine test rejects the slashless variant; the root cause and verification are documented
+without private URL, API key, or inventory data.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

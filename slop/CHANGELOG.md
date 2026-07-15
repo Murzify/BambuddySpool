@@ -2,6 +2,10 @@
 
 ## 2026-07-15
 
+- Completed `[MVP]-[003]`: preserved the contract-required terminal slash on the printer collection endpoint and
+  added a deterministic regression test that treats the slashless variant as `404`. The discovery came from an
+  owner-authorized read-only contract check; no private host, token, or inventory data is recorded.
+
 - Added the constrained owner-authorized read-only MVP runtime: policy-checked Ktor validation, Keystore token
   replacement, full GET-only initial snapshot synchronization, rollback on failed replacement, and process-local
   cache projections for Home, Spools, and Printers.

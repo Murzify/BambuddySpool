@@ -81,6 +81,22 @@ class KtorBambuddyRepositoryTest {
     }
 
     @Test
+    fun printerCollectionUsesTheContractRequiredTrailingSlash() = runTest {
+        val requests = mutableListOf<HttpRequestData>()
+        val repository = repository("https://example.test/proxy") { request ->
+            requests += request
+            if (request.url.encodedPath == "/proxy/api/v1/printers/") {
+                respond(content = PRINTERS_JSON, headers = JSON_HEADERS)
+            } else {
+                respondError(status = HttpStatusCode.NotFound, content = ERROR_JSON, headers = JSON_HEADERS)
+            }
+        }
+
+        assertIs<BambuddyNetworkResult.Success<*>>(repository.getPrinters())
+        assertEquals(listOf("/proxy/api/v1/printers/"), requests.map { it.url.encodedPath })
+    }
+
+    @Test
     fun clientErrorsServerErrorsTransportContractTlsPolicyAndOversizeAreDistinct() = runTest {
         assertIs<BambuddyNetworkError.HttpClientError>(
             assertFailure(repositoryResponding(status = HttpStatusCode.Unauthorized).validateAuth())

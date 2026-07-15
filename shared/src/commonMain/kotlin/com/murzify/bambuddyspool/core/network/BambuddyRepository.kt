@@ -71,6 +71,7 @@ class KtorBambuddyRepository(
         method = HttpMethod.Get,
         endpoint = BambuddyEndpoint.PrintersList,
         pathSegments = listOf("api", "v1", "printers"),
+        // The 0.2.4.7 contract defines the collection endpoint with this terminal slash.
         trailingSlash = true,
         mapper = ::parsePrintersResponse
     )
