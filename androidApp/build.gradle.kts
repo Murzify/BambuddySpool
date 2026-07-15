@@ -30,6 +30,8 @@ dependencies {
     androidTestImplementation(libs.androidx.testExt.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlin.test)
+
+    testImplementation(libs.kotlin.test.junit)
 }
 
 android {

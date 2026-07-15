@@ -20,7 +20,8 @@ class MainActivity : ComponentActivity() {
     private val root by lazy {
         createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            nfcService = AndroidNfcService(applicationContext)
+            nfcService = AndroidNfcService(applicationContext),
+            secureTokenStore = (application as BambuddyApplication).secureStorage
         ).rootComponent
     }
 

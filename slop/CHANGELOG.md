@@ -2,6 +2,14 @@
 
 ## 2026-07-15
 
+- Completed `[SEC]-[001]` with AES-GCM token encryption backed by an Android Keystore key and an application-private
+  encrypted blob. The Android MVP graph receives the storage lazily without adding token text to UI, navigation,
+  settings, cache, logs, resources, or clipboard.
+- Key invalidation deletes only an unreadable token blob and requires token re-entry while preserving non-secret
+  settings and cache. Added focused replacement, deletion, invalidation, backup-rule, and release-posture tests;
+  legacy, cloud, and device-transfer backup exclusions remain explicit. `[SEC]-[002]` still owns the fail-closed
+  network-policy gate, and no private configuration or live instance was used.
+
 - Completed `[MVP]-[001]` and recorded the owner-authorized MVP sequencing decision. The production root now renders
   shared Setup on first launch and the same connection form in Settings, with observable non-secret settings and a
   connection-aware empty-cache boundary.

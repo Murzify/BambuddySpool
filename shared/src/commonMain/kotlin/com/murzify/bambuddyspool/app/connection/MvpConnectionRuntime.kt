@@ -37,8 +37,10 @@ import kotlinx.coroutines.flow.map
  * navigated and exercised safely, but its Test and Save actions fail closed until SEC-001 and SEC-002 provide the
  * Keystore and transport-policy implementations. Only non-secret settings presentation is observable here.
  */
-internal class MvpConnectionRuntime(private val scope: CoroutineScope) :
-    ConnectionSettingsStore,
+internal class MvpConnectionRuntime(
+    private val scope: CoroutineScope,
+    tokenStore: SecureTokenStore = RejectedTokenStore
+) : ConnectionSettingsStore,
     ObservableConnectionSettingsStore {
     private val mutableSettings = MutableStateFlow(ConnectionSettings.Empty)
     val settings: StateFlow<ConnectionSettings> = mutableSettings.asStateFlow()
@@ -46,7 +48,7 @@ internal class MvpConnectionRuntime(private val scope: CoroutineScope) :
     val form = ConnectionFormComponent(
         service = ConnectionReplacementService(
             settingsStore = this,
-            tokenStore = RejectedTokenStore,
+            tokenStore = tokenStore,
             validator = SecurityGateValidator,
             replacementTransaction = RejectedReplacementTransaction
         ),

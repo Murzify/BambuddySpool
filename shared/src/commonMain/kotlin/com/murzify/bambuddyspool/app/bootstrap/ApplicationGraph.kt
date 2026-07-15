@@ -8,6 +8,7 @@ import com.murzify.bambuddyspool.core.application.ComponentScope
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
+import com.murzify.bambuddyspool.core.security.SecureTokenStore
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
@@ -37,9 +38,13 @@ class RootGraph internal constructor(val rootComponent: RootComponent)
 fun createRootGraph(
     componentContext: ComponentContext,
     nfcService: NfcService,
-    spoolProjectionRepository: CacheProjectionRepository = EmptyCacheProjectionRepository
+    spoolProjectionRepository: CacheProjectionRepository = EmptyCacheProjectionRepository,
+    secureTokenStore: SecureTokenStore? = null
 ): RootGraph {
-    val connectionRuntime = MvpConnectionRuntime(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    val connectionRuntime = MvpConnectionRuntime(
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        tokenStore = secureTokenStore ?: RejectedTokenStore
+    )
     componentContext.lifecycle.doOnDestroy(connectionRuntime::close)
     val componentGraph = createGraphFactory<ComponentGraph.Factory>().create(
         componentContext = componentContext,
@@ -52,4 +57,16 @@ fun createRootGraph(
         connectionRuntime = connectionRuntime
     )
     return RootGraph(rootComponent = componentGraph.rootComponent)
+}
+
+/** Used only by non-Android MVP shells until their platform storage is implemented. */
+private object RejectedTokenStore : SecureTokenStore {
+    override suspend fun replaceToken(value: com.murzify.bambuddyspool.core.security.SecretValue): Nothing =
+        error("Android SEC-001 storage is unavailable in this shell.")
+
+    override suspend fun clearToken(): Nothing = error("Android SEC-001 storage is unavailable in this shell.")
+
+    override suspend fun hasToken(): Boolean = false
+
+    override suspend fun currentTokenForReplacement(): com.murzify.bambuddyspool.core.security.SecretValue? = null
 }

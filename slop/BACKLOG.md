@@ -344,7 +344,7 @@ All clean-checkout CI jobs pass; release acceptance is traceable; no disabled te
 
 ## Stage 5. Security, Supply Chain, and Release
 
-- [ ] [SEC]-[001] Implement Android Keystore Storage and Backup Controls
+- [x] [SEC]-[001] Implement Android Keystore Storage and Backup Controls
 Task Context
 Store the token only through Keystore-backed SecureStorage. Never reveal, copy, persist elsewhere, navigate, save, or log it. Handle key invalidation through re-entry without losing cache/settings. Exclude encrypted token data from Android backup/migration and minimize in-memory lifetime.
 Task DOD
