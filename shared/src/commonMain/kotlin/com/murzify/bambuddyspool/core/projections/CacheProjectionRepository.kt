@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 interface CacheProjectionRepository {
@@ -32,6 +33,27 @@ interface CacheProjectionRepository {
     ): Flow<CacheProjectionState<PagedResult<SpoolSummaryProjection>>>
 
     fun observeSpool(spoolId: SpoolId): Flow<CacheProjectionState<SpoolSummaryProjection?>>
+}
+
+/** Explicit no-cache graph binding for shells before a Room database is opened. Never returns a nullable repository. */
+object EmptyCacheProjectionRepository : CacheProjectionRepository {
+    override fun observePrinters(): Flow<CacheProjectionState<List<PrinterSummaryProjection>>> =
+        flowOf(CacheProjectionState.InitialLoading)
+
+    override fun observePrinterSlots(printerId: PrinterId): Flow<CacheProjectionState<List<PrinterSlotProjection>>> =
+        flowOf(CacheProjectionState.InitialLoading)
+
+    override fun observeDefaultSpoolPage(
+        page: PageRequest
+    ): Flow<CacheProjectionState<PagedResult<SpoolSummaryProjection>>> = flowOf(CacheProjectionState.InitialLoading)
+
+    override fun observeSpoolSearch(
+        queries: Flow<SpoolSearchQuery>,
+        page: PageRequest
+    ): Flow<CacheProjectionState<PagedResult<SpoolSummaryProjection>>> = flowOf(CacheProjectionState.InitialLoading)
+
+    override fun observeSpool(spoolId: SpoolId): Flow<CacheProjectionState<SpoolSummaryProjection?>> =
+        flowOf(CacheProjectionState.InitialLoading)
 }
 
 interface ObservableConnectionSettingsStore {

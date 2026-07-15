@@ -1,6 +1,6 @@
 package com.murzify.bambuddyspool.core.domain
 
-sealed interface DomainFailure
+interface DomainFailure
 
 data class IncompatibleApiResponse(val reason: IncompatibleApiReason) : DomainFailure
 

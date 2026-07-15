@@ -10,7 +10,6 @@ import com.murzify.bambuddyspool.app.root.RootState
 import com.murzify.bambuddyspool.core.platform.mockPlatformServices
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 
 class ArchitectureSkeletonTest {
 
@@ -26,15 +25,16 @@ class ArchitectureSkeletonTest {
     }
 
     @Test
-    fun metroBuildsScopedMockRootGraph() {
+    fun metroBuildsScopedRootGraphWithTestNfc() {
         val services = mockPlatformServices()
         val graph = createRootGraph(
             componentContext = DefaultComponentContext(LifecycleRegistry()),
-            platformServices = services
+            nfcService = services.nfc
         )
 
-        assertSame(services.secureStorage, graph.applicationGraph.secureStorage)
-        assertSame(services.nfc, graph.applicationGraph.nfcService)
-        assertSame(graph.rootComponent, graph.rootComponent)
+        assertEquals(services.nfc.isAvailable, graph.rootComponent.state.value.nfcState.isAvailable())
     }
 }
+
+private fun com.murzify.bambuddyspool.app.root.HomeNfcState.isAvailable(): Boolean =
+    this == com.murzify.bambuddyspool.app.root.HomeNfcState.Available

@@ -1,7 +1,141 @@
 # Agent Documentation Changelog
 
+## 2026-07-15
+
+- Completed `[CODE]-[018]` with a product-code polish review. Spools and Printers now collect their component
+  `StateFlow` once per rendered screen and pass immutable state into their detail branch, removing redundant detail
+  collectors without changing safe restoration or mutation boundaries.
+- Reviewed Compose recomposition/stable keys, lifecycle cancellation, reducer and flow ownership, resource access,
+  visibility/KDoc, and suppressions. Formatting, Detekt, Android Lint, Android host/iOS Simulator tests, Android
+  assembly, and the repository policy gate passed. Lint dependency advisories remain visible release work for
+  `[SEC]-[005]`; no private configuration or live Bambuddy instance was used.
+
+- Completed `[CODE]-[017]` with a feature security review and evidence in `slop/security/feature-review.md`.
+  Fixed concurrent assignment POST and tag-mutation write ownership with process-local mutation guards, retaining
+  their application-scoped/no-replay behavior.
+- Hardened Android NFC entry against Intent spoofing: a routed URI now needs non-empty framework Tag evidence and
+  exactly one independently decoded framework NDEF record equal to the canonical Intent URI. Added deterministic
+  race and adversarial coverage; no private configuration or live instance was used.
+
+- Completed `[CODE]-[016]` by making `AssignmentIntent` the single common manual/NFC orchestration boundary.
+  Manual selection now delegates through the same root transition; NFC retains only its live, non-restorable scan
+  session until the POST boundary. Freshness, confirmation, retry, POST, and verification remain shared.
+- Consolidated setup/settings form presentation, responsive navigation ordering/selection, and workflow feedback
+  surfaces without adding a framework layer. Android host and iOS Simulator regression suites, formatting, Detekt,
+  Android Lint, and the repository policy gate passed.
+
+- Completed `[CODE]-[015]` by removing the Android shell's temporary `mockPlatformServices()` production bootstrap.
+  Android now supplies only its real NFC capability to the shared root; the unused application graph and unimplemented
+  production service bindings are gone. The deterministic aggregate fake moved to `commonTest`, while the required
+  iOS mock shell remains iOS-only and fail-closed.
+- Removed the Android Preview/tooling dependency pair and empty feature-boundary marker files. Assignment and NFC
+  code paths remain singular, with no production inventory, assignment, or mutation fake data introduced.
+
+- Completed `[CODE]-[014]` with a launchable Swift/Xcode wrapper around the shared Compose root and a dedicated iOS
+  mock platform graph. Root navigation executes in shared Kotlin code; the mock shell has no Swift product screens.
+- iOS-only platform bindings now fail closed for NFC, credential storage, and network creation, return no clipboard
+  success, and keep NFC unavailable. They neither persist credentials nor synthesize inventory, assignments, or
+  mutation results. iOS Simulator tests construct the graph, navigate every shared root destination, and prove the
+  unsupported operations stay unavailable.
+
 ## 2026-07-14
 
+- Completed `[CODE]-[012]` with a shared adaptive and accessible Compose baseline. Compact, medium, and expanded
+  widths now follow the approved breakpoints; compact uses bottom navigation while wider layouts use the navigation
+  rail. The root follows system light/dark theme, critical long-form content scrolls at large font scales, and action
+  targets use a shared 48 dp minimum.
+- Added resource-backed fallback text, semantic headings and state descriptions, visible disabled-action reasons,
+  Processing live-region announcements, and initial Success/Error focus. Confirmation keeps its specified source
+  order. Targeted API 36 Android device tests cover compact and expanded/dark/2x-font rendering; the debug APK was
+  also installed and visually checked through Android CLI.
+
+- Completed `[CODE]-[011]` with a common transient tag-mutation state machine. Empty tags can be linked after a
+  fresh GET-only online validation; different, unknown, and malformed payloads require an explicit overwrite
+  confirmation; an identical canonical payload is `Already linked`. Clear also requires confirmation, uses an empty
+  writable NDEF message, and independently verifies normalized empty read-back. Physical failures never retry
+  automatically: retry first requires a same-fingerprint read, then another explicit confirmation. This workflow
+  cannot create Bambuddy assignments, and all authorization/fingerprint state remains process-local.
+
+- Completed `[CODE]-[009]` with a shared, pure NFC session coordinator. Accepted observations carry only a
+  physical fingerprint, canonical payload, and platform monotonic timestamp; same-fingerprint scans inside one
+  second are suppressed without wall-clock use.
+- Before the first POST, a new scan replaces the in-memory workflow; after the POST boundary, exactly one newest
+  scan is retained until the active mutation/verification finishes. Success is replaced immediately by Processing.
+  The coordinator uses opaque transient session identities, ignores stale callbacks, and never serializes session,
+  pending-scan, or mutation state.
+- Added deterministic race coverage for suppression, pre-POST replacement, post-POST latest-only capacity, stale
+  callbacks, and immediate Success replacement. Android supplies `elapsedRealtime()` at the intent boundary; no
+  Android NFC object crosses into common code.
+
+- Completed `[CODE]-[008]` with a thin Android-only canonical NDEF URI entry adapter. The manifest declares an
+  optional NFC feature, one `bambuddy-spool://spool/<id>` NDEF-discovery filter, and `singleTop`; cold and
+  `onNewIntent` scans enter the existing Activity rather than accumulating Activities.
+- The launcher parses the scan before constructing the shared graph and immediately renders transient Processing.
+  Android `Intent`, `Tag`, and NFC-adapter details remain in `androidApp`; shared code receives only a bounded
+  platform-neutral fingerprint and canonical URI, which are never restored or replayed. Missing and disabled NFC
+  remain distinct shared Home states, preserving viewing and manual-assignment paths.
+- Added Android device coverage for canonical filtering, noncanonical/unrelated URI rejection, and manifest
+  resolution/launch mode. Verified the debug APK and navigation UI on an API 36 emulator; the Android minSdk remains
+  API 23, with no API-23-incompatible platform calls introduced.
+
+- Completed `[CODE]-[007]` with strict, virtual-time-covered assignment POST retries and exact verification. The
+  orchestrator sends at most four identical POSTs at the specified 500 ms, 1 s, and 2 s retry boundaries, only for
+  retryable transport/5xx failures, without a pre-retry GET.
+- Added target-printer assignment polling immediately, at +200 ms, and +500 ms. Only one exact SlotKey/spool match
+  produces a typed configured, pending-configuration, or inventory-only success; duplicate slot state and HTTP-only
+  success fail closed, and verification never sends another POST.
+- Completed `[CODE]-[006]` with one shared, transient combined-assignment confirmation surface. It presents the
+  spool, every known current location, target printer and slot, target replacement, and final assign or move-and-
+  assign effect together; replacement alone is secondary information and does not create another confirmation.
+- Kept the confirmation state out of restoration and operation authorization. Its stable shared focus order exposes
+  the title, spool/current locations, target printer, target slot, warning, primary action, and cancel action in
+  that order. Deterministic tests cover move conflicts, target replacement, an unassigned target, focus order, and
+  the existing assignment preflight's no-POST `AlreadyAssigned` result.
+- Completed `[CODE]-[005]` with a common, fail-closed assignment preflight and initial application-scoped POST
+  boundary shared by manual and NFC entry. It refreshes spool, printer, status, and assignments, rejects stale,
+  offline, unsupported, changed-slot, inconsistent, or unconfirmed context before POST, and never persists/replays a
+  command.
+- Added immutable pure preflight decisions for Ready, AlreadyAssigned, and one combined-confirmation requirement;
+  HTTP success remains fail-closed pending CODE-007 exact verification. Deterministic tests cover cancellation
+  ownership, stale/unsupported blocking, confirmation, and idempotency.
+- Completed `[CODE]-[004]` with shared Room-projection printer and slot screens. External slots are the only
+  selectable manual-assignment targets; AMS slots are visibly read-only and unknown, stale, offline, or unsupported
+  topology leaves mutation disabled.
+- Added the transient common `AssignmentIntent` boundary used by manual selection and reserved for NFC resolution;
+  it carries the validated snapshot generation but is never serialized, restored, or replayed.
+- Fixed the compact-width Spools-filter regression: filter controls now flow across rows with 48 dp targets, backed
+  by a narrow-width Compose regression test.
+- Completed `[CODE]-[003]` with a shared resource-backed Spools browser and details surface, safe restoration of
+  query/filter/detail state, Room-projection search integration, and the indexed 100-item lazy page suitable for
+  large inventories.
+- Added default active/nonarchived/nonempty browsing with explicit inactive, archived, and empty extensions;
+  the existing 150ms cancellable Room/FTS search pipeline remains the single search implementation.
+- Spool rows/details show independent text metadata, color name, remaining amount, and assignment state without
+  relying on color alone. Cached content stays visible during refresh/failure while assignment and tag-link actions
+  are disabled unless the projection grants fresh mutation availability.
+- Added transient manual-assignment and NFC-tag-link entry intents, plus a precise deleted-spool relink path. Those
+  intents deliberately retain no operation authorization, NFC session, or mutation state across recreation.
+- Wired the Spools component to a required cache-projection graph boundary, moved the screen into `feature/spools`,
+  and added lifecycle cancellation, dedicated detail projections, stable UI semantics, and Android device UI tests.
+- Completed `[CODE]-[002]` with a shared Decompose/UDF root for Home, Spools, Printers, and Settings, responsive
+  bottom navigation below 600 dp and a navigation rail at wider widths, plus explicit transient root workflow state.
+- Added independent, safely restorable Decompose child histories for every primary destination. Credentials,
+  authorization, NFC sessions, transient workflows, and mutation state are intentionally excluded from saved state.
+- Added the minimal resource-backed Home screen with configured/online/offline/stale connection messaging and NFC
+  available/unavailable/disabled states, along with deterministic restoration and reducer tests on Android host and
+  iOS Simulator targets.
+- Added ADR-011 for durable fail-closed connection replacement and recovery across settings, credentials, cache,
+  and initial-sync scheduling.
+- Removed the unsafe compensating multi-store replacement path. `ConnectionReplacementService` now invokes only an
+  injected ADR-011 transaction that includes initial-sync scheduling, and deterministic tests prove scheduling
+  failure and cancellation cannot be surfaced as a successful save.
+- Completed `[CODE]-[001]` with one resource-backed shared URL/token/Test/Save form for Setup and Settings. The
+  token is kept only in unsaved Compose memory and is converted directly to the non-printing secret boundary;
+  reducer, navigation, and saved state contain only safe form metadata.
+- Added validation-only connection testing, reducer coverage for required inputs and sequential safety warnings, and
+  critical instance-change/HTTP confirmations. Connection replacement now validates reachability and authentication
+  before showing the instance-change warning, then retains the existing atomic cache/default/security reset and
+  initial-sync path.
 - Completed `[DATA]-[014]` by documenting the public network, synchronization, client-lifecycle, and
   connection-replacement contracts; narrowing the Room snapshot adapter to internal visibility; and preserving
   coroutine cancellation through the Ktor request boundary with deterministic MockEngine coverage.

@@ -23,11 +23,13 @@ kotlin {
 }
 dependencies {
     implementation(projects.shared)
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.androidx.activity.compose)
 
-    implementation(libs.compose.uiToolingPreview)
-    debugImplementation(libs.compose.uiTooling)
+    androidTestImplementation(libs.androidx.testExt.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlin.test)
 }
 
 android {

@@ -146,73 +146,73 @@ Common, Room, network, formatting, static, architecture, and iOS checks pass; pu
 
 ## Stage 3. Product Implementation
 
-- [ ] [CODE]-[001] Implement Setup and Atomic Connection Management
+- [x] [CODE]-[001] Implement Setup and Atomic Connection Management
 Task Context
 Build the shared one-page URL/token/Test/Save setup. Validate reachability and auth only. Support the permitted URL forms, critical instance-change warning, atomic connection replacement, cache/default reset, and initial sync. Validate token replacement before saving it.
 Task DOD
 Setup and Settings share one service; secrets are absent from saved/navigation state; validation failure changes nothing; confirmed server change resets correct data/consents; accessible reducer-tested UI uses resources.
 
-- [ ] [CODE]-[002] Implement Root Navigation, Home, and Restoration
+- [x] [CODE]-[002] Implement Root Navigation, Home, and Restoration
 Task Context
 Create Decompose Home/Spools/Printers/Settings roots with independent child stacks, bottom navigation below 600dp and rail otherwise. Assignment/tag mutation are transient root workflows. Restore only safe navigation/search/filter state, never credentials, authorization, NFC sessions, or mutations.
 Task DOD
 Android/iOS navigation works without Activity stacking; safe state survives recreation; Home remains minimal; online/offline/NFC states render; navigation arguments contain no Android type.
 
-- [ ] [CODE]-[003] Implement Spools and Spool Details
+- [x] [CODE]-[003] Implement Spools and Spool Details
 Task Context
 Implement default and extended filters, 150ms cancellable search, specified sorting, accessible metadata/color display, remaining amount, assignment, tag actions, and manual assignment. Do not edit spool metadata. A deleted tagged spool produces a precise relink option.
 Task DOD
 The lazy list handles 25k records; filters restore; offline content remains viewable while mutation is disabled; resources, semantics, reducer tests, and UI tests cover all actions.
 
-- [ ] [CODE]-[004] Implement Printers and Manual Assignment Entry
+- [x] [CODE]-[004] Implement Printers and Manual Assignment Entry
 Task Context
 Show assignment-relevant printer details. External slots are labeled/selectable; AMS is visible read-only; unknown topology blocks mutation. Manual assignment creates the same AssignmentIntent used by NFC.
 Task DOD
 Screens use Room projections; all topology states render correctly; AMS cannot be targeted; manual and NFC share orchestration; stale/offline guards, accessibility, and tests pass.
 
-- [ ] [CODE]-[005] Implement AssignmentOrchestrator
+- [x] [CODE]-[005] Implement AssignmentOrchestrator
 Task Context
 Implement the complete shared state machine. Refresh relevant status/assignments and validate spool before mutation. If SlotKey changes, return to selection without POST. Allow zero confirmation only under every TECHSPEC safety condition. Keep commands immutable across retries and do not persist/replay mutations.
 Task DOD
 Decisions are pure and effects isolated; pre-POST cancellation and post-POST application scope are correct; stale/offline/unsupported states never POST; every branch is typed and deterministic.
 
-- [ ] [CODE]-[006] Implement Combined Confirmation and Resolution UI
+- [x] [CODE]-[006] Implement Combined Confirmation and Resolution UI
 Task Context
 Use one surface for printer, slot, move warning, all current locations, target replacement, and final effect. A default only preselects when several printers exist. Target replacement alone adds no confirmation. Fresh exact assignment returns AlreadyAssigned without POST.
 Task DOD
 Every path has zero or one confirmation; required focus order and move disclosure hold; tests prove selection, conflicts, replacement, and AlreadyAssigned behavior.
 
-- [ ] [CODE]-[007] Implement POST Retry and Exact Verification
+- [x] [CODE]-[007] Implement POST Retry and Exact Verification
 Task Context
 Retry only retryable transport/5xx errors at 500ms, 1s, and 2s, maximum four identical POSTs, without pre-retry GET. Do not auto-retry 4xx, contract, topology, TLS, or invalid command failures. After POST poll assignments immediately, +200ms, +500ms and require exactly one matching printer/ams/tray/spool. Verification never resends POST.
 Task DOD
 Virtual-time tests prove calls/delays; duplicate slot state and HTTP-only success never pass; user Retry starts a fresh cycle; configured/pending outcomes and isolated haptic/clipboard failures render correctly.
 
-- [ ] [CODE]-[008] Implement Android NFC Entry and Read Adapter
+- [x] [CODE]-[008] Implement Android NFC Entry and Read Adapter
 Task Context
 Register only the canonical URI filter with `singleTop`; route initial and `onNewIntent` scans through a thin adapter. Render Processing within one second before full bootstrap. Keep devices without/with-disabled NFC usable and keep Android Intent/Tag/NdefMessage out of common code.
 Task DOD
 Cold and active scans work without Activity accumulation; unrelated URIs are ignored; first render is not sync-blocked; API 23, disabled/missing NFC, manifest, and device tests pass.
 
-- [ ] [CODE]-[009] Implement NFC Scan Coordination
+- [x] [CODE]-[009] Implement NFC Scan Coordination
 Task Context
 Serialize one NFC session. Suppress accepted duplicate fingerprints within one second. Before POST, a new scan replaces the workflow; after POST, finish verification and retain only the newest pending scan; a Success scan immediately returns to Processing. Use a monotonic clock.
 Task DOD
 Deterministic race tests prove suppression, supersession, and active-plus-latest capacity; parallel POSTs cannot occur; Android objects and restorable mutation state are absent.
 
-- [ ] [CODE]-[010] Implement Android NFC Write and Read-Back Primitives
+- [x] [CODE]-[010] Implement Android NFC Write and Read-Back Primitives
 Task Context
 Support writable Ndef and NdefFormatable, enforce capacity, write one URI record, reconnect, and independently reread. Verify canonical application URIs, not bytes. Classify read-only/unsupported tags without mutation. Bind authorization to the expected fingerprint and expose no read-only locking.
 Task DOD
 All uncertain write phases have correct typed outcomes; overflow/different-tag cases never write; generated NdefMessage tests cover capabilities and records; irreversible APIs are absent.
 
-- [ ] [CODE]-[011] Implement Link, Overwrite, and Clear Workflows
+- [x] [CODE]-[011] Implement Link, Overwrite, and Clear Workflows
 Task Context
 Fresh-validate selected spools online. Empty tags can link; nonempty different/unknown payloads require explicit old/new overwrite confirmation; the same payload is Already linked. Clear always confirms and leaves a writable readable empty NDEF tag. Never mutate Bambuddy. Do not automatically retry physical writes; retry starts with read-before-write.
 Task DOD
 The shared state machine covers every read and mutation outcome; canonical reread is the sole success boundary; authorization is not restored; wrong tags are never written; lost-tag and deleted-spool scenarios are tested.
 
-- [ ] [CODE]-[012] Implement Adaptive, Accessible, Resource-Based UI
+- [x] [CODE]-[012] Implement Adaptive, Accessible, Resource-Based UI
 Task Context
 Keep all product UI in common Compose. Support compact/medium/expanded widths, unlocked orientation, system themes, English resources, semantic roles/labels/state, 48dp targets, Processing live region, Success/Error focus, disabled reasons, large fonts, scrolling, and non-gesture alternatives.
 Task DOD
@@ -224,25 +224,25 @@ Measure monotonic stages for the two-second assignment and one-second cold-launc
 Task DOD
 Ephemeral/test timing is runnable; StrictMode-covered flows are clean; the TECHSPEC degradation table is implemented; release contains no analytics, crash reporting, or persistent diagnostics.
 
-- [ ] [CODE]-[014] Implement the iOS Mock Shell
+- [x] [CODE]-[014] Implement the iOS Mock Shell
 Task Context
 Compile both iOS targets, run shared tests, render the shared root, and provide explicit deterministic mocks for unsupported platform services. Do not create separate Swift product screens or pretend mutations work.
 Task DOD
 iOS shell launches and navigates shared UI; unsupported actions are disabled; Simulator smoke passes; Android dependencies do not leak into common code.
 
-- [ ] [CODE]-[015] Remove Feature Debris
+- [x] [CODE]-[015] Remove Feature Debris
 Task Context
 Remove prototypes, duplicate screens, temporary production fakes, unreachable states, debug buttons, obsolete routes/resources, and unused dependencies while retaining required test fakes and iOS mocks.
 Task DOD
 Only one assignment/NFC implementation exists; production contains no fake data or dead route; Android/iOS builds and feature tests pass; out-of-scope features are absent.
 
-- [ ] [CODE]-[016] Deduplicate UI and Orchestration
+- [x] [CODE]-[016] Deduplicate UI and Orchestration
 Task Context
 Unify NFC/manual assignment, setup/settings connection, result/error surfaces, responsive navigation, and tag operations where semantics match. Avoid god components and speculative frameworks.
 Task DOD
 Entry source is the only NFC/manual difference; business rules have one shared implementation; common components retain clear ownership; regressions pass.
 
-- [ ] [CODE]-[017] Review Feature Security
+- [x] [CODE]-[017] Review Feature Security
 Task Context
 Review authorization lifetime, wrong-tag writes, duplicate POSTs, offline mutation, move confirmation, stale topology, recreation, clipboard/details, NFC injection, and intent spoofing against fail-closed requirements.
 Task DOD

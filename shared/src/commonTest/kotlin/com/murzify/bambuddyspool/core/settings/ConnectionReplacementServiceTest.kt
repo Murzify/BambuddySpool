@@ -5,6 +5,7 @@ import com.murzify.bambuddyspool.core.security.SecretValue
 import com.murzify.bambuddyspool.core.security.SecureTokenStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.runBlocking
@@ -119,10 +120,15 @@ class ConnectionReplacementServiceTest {
             )
         )
         val tokenStore = FakeTokenStore(oldToken)
-        val cache = FakeCacheMaintenance()
+        val transaction = FakeReplacementTransaction(settings, tokenStore)
         val validator =
             FakeValidator(connectionResult = failure(ConnectionValidationFailureReason.AuthenticationRejected))
-        val service = service(settings = settings, tokenStore = tokenStore, validator = validator, cache = cache)
+        val service = service(
+            settings = settings,
+            tokenStore = tokenStore,
+            validator = validator,
+            transaction = transaction
+        )
 
         val result = service.replaceConnection(
             rawBaseUrl = "https://new.example.local/api",
@@ -139,7 +145,7 @@ class ConnectionReplacementServiceTest {
         )
         assertEquals(original, settings.current.baseUrl)
         assertEquals(oldToken, tokenStore.currentToken)
-        assertEquals(0, cache.clearCount)
+        assertEquals(0, transaction.commitCount)
     }
 
     @Test
@@ -154,9 +160,14 @@ class ConnectionReplacementServiceTest {
             )
         )
         val tokenStore = FakeTokenStore(oldToken)
-        val cache = FakeCacheMaintenance()
+        val transaction = FakeReplacementTransaction(settings, tokenStore)
         val validator = FakeValidator(tokenResult = failure(ConnectionValidationFailureReason.AuthenticationRejected))
-        val service = service(settings = settings, tokenStore = tokenStore, validator = validator, cache = cache)
+        val service = service(
+            settings = settings,
+            tokenStore = tokenStore,
+            validator = validator,
+            transaction = transaction
+        )
 
         val result = service.replaceToken(secret("bad-token"))
 
@@ -165,21 +176,151 @@ class ConnectionReplacementServiceTest {
             result
         )
         assertEquals(oldToken, tokenStore.currentToken)
-        assertEquals(0, cache.clearCount)
+        assertEquals(0, transaction.commitCount)
+    }
+
+    @Test
+    fun testConnectionNeverMutatesTheActiveConnection() = runBlocking {
+        val original = url("https://old.example.local/api")
+        val oldToken = secret("old-token")
+        val settings = FakeSettingsStore(
+            ConnectionSettings(original, null, null, null)
+        )
+        val tokenStore = FakeTokenStore(oldToken)
+        val transaction = FakeReplacementTransaction(settings, tokenStore)
+        val service = service(settings = settings, tokenStore = tokenStore, transaction = transaction)
+
+        assertEquals(
+            ConnectionTestResult.Valid,
+            service.testConnection("https://new.example.local/api", secret("new-token"))
+        )
+        assertEquals(original, settings.current.baseUrl)
+        assertEquals(oldToken, tokenStore.currentToken)
+        assertEquals(0, transaction.commitCount)
+    }
+
+    @Test
+    fun validationOccursBeforeTheInstanceChangeWarning() = runBlocking {
+        val settings = FakeSettingsStore(ConnectionSettings(url("https://old.example.local"), null, null, null))
+        val validator = FakeValidator(
+            connectionResult = failure(ConnectionValidationFailureReason.AuthenticationRejected)
+        )
+        val service = service(settings = settings, validator = validator)
+
+        val result = service.replaceConnection(
+            rawBaseUrl = "https://new.example.local",
+            token = secret("bad-token"),
+            acknowledgements = ConnectionReplacementAcknowledgements.None
+        )
+
+        assertEquals(
+            ConnectionReplacementResult.ValidationFailed(ConnectionValidationFailureReason.AuthenticationRejected),
+            result
+        )
+        assertEquals(1, validator.connectionValidationCount)
+    }
+
+    @Test
+    fun confirmedReplacementUsesTheDurableTransactionIncludingInitialSyncScheduling() = runBlocking {
+        val settings = FakeSettingsStore(ConnectionSettings(url("https://old.example.local"), null, null, null))
+        val tokenStore = FakeTokenStore()
+        val transaction = FakeReplacementTransaction(settings, tokenStore)
+        val service = service(settings = settings, transaction = transaction)
+
+        assertEquals(
+            ConnectionReplacementResult.Replaced,
+            service.replaceConnection(
+                rawBaseUrl = "https://new.example.local",
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements(
+                    acceptedInstanceChangeWarning = true,
+                    acceptedHttpWarning = false
+                )
+            )
+        )
+        assertEquals(1, transaction.commitCount)
+        assertEquals(1, transaction.initialSyncScheduleCount)
+    }
+
+    @Test
+    fun savingTheSameUrlReplacesOnlyTheValidatedToken() = runBlocking {
+        val activeUrl = url("https://bambuddy.example/api")
+        val settings = FakeSettingsStore(ConnectionSettings(activeUrl, null, null, null))
+        val tokenStore = FakeTokenStore(secret("old-token"))
+        val transaction = FakeReplacementTransaction(settings, tokenStore)
+        val service = service(settings = settings, tokenStore = tokenStore, transaction = transaction)
+
+        assertEquals(
+            ConnectionReplacementResult.Replaced,
+            service.replaceConnection(
+                rawBaseUrl = activeUrl.canonical,
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements.None
+            )
+        )
+        assertEquals(activeUrl, settings.current.baseUrl)
+        assertEquals(0, transaction.commitCount)
+        assertEquals(0, transaction.initialSyncScheduleCount)
+    }
+
+    @Test
+    fun initialSyncSchedulingFailureNeverReturnsReplacementSuccess() = runBlocking {
+        val original = url("https://old.example.local")
+        val oldToken = secret("old-token")
+        val settings = FakeSettingsStore(ConnectionSettings(original, null, null, null))
+        val tokenStore = FakeTokenStore(oldToken)
+        val transaction = FakeReplacementTransaction(
+            settings,
+            tokenStore,
+            failure = IllegalStateException("initial sync scheduling failed")
+        )
+        val service = service(settings = settings, tokenStore = tokenStore, transaction = transaction)
+
+        assertFailsWith<IllegalStateException> {
+            service.replaceConnection(
+                rawBaseUrl = "https://new.example.local",
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements(true, false)
+            )
+        }
+        assertEquals(1, transaction.commitCount)
+        assertEquals(original, settings.current.baseUrl)
+        assertEquals(oldToken, tokenStore.currentToken)
+    }
+
+    @Test
+    fun transactionCancellationPropagatesWithoutReportingReplacementSuccess() = runBlocking {
+        val original = url("https://old.example.local")
+        val settings = FakeSettingsStore(ConnectionSettings(original, null, null, null))
+        val tokenStore = FakeTokenStore(secret("old-token"))
+        val transaction = FakeReplacementTransaction(
+            settings,
+            tokenStore,
+            failure = kotlinx.coroutines.CancellationException("cancel replacement")
+        )
+        val service = service(settings = settings, tokenStore = tokenStore, transaction = transaction)
+
+        assertFailsWith<kotlinx.coroutines.CancellationException> {
+            service.replaceConnection(
+                rawBaseUrl = "https://new.example.local",
+                token = secret("new-token"),
+                acknowledgements = ConnectionReplacementAcknowledgements(true, false)
+            )
+        }
+        assertEquals(1, transaction.commitCount)
+        assertEquals(original, settings.current.baseUrl)
     }
 
     private fun service(
         settings: FakeSettingsStore,
         tokenStore: FakeTokenStore = FakeTokenStore(),
         validator: FakeValidator = FakeValidator(),
-        cache: FakeCacheMaintenance = FakeCacheMaintenance(),
-        sync: FakeInitialSync = FakeInitialSync()
+        transaction: FakeReplacementTransaction = FakeReplacementTransaction(settings, tokenStore)
     ): ConnectionReplacementService = ConnectionReplacementService(
         settingsStore = settings,
         tokenStore = tokenStore,
         validator = validator,
-        cacheMaintenance = cache,
-        initialSync = sync
+        replacementTransaction = transaction
     )
 
     private fun url(raw: String): CanonicalBaseUrl =
@@ -213,14 +354,18 @@ private class FakeTokenStore(initial: SecretValue? = null) : SecureTokenStore {
     }
 
     override suspend fun hasToken(): Boolean = currentToken != null
+    override suspend fun currentTokenForReplacement(): SecretValue? = currentToken
 }
 
 private class FakeValidator(
     private val connectionResult: ConnectionValidationResult = ConnectionValidationResult.Valid,
     private val tokenResult: ConnectionValidationResult = ConnectionValidationResult.Valid
 ) : ConnectionValidator {
+    var connectionValidationCount: Int = 0
+        private set
+
     override suspend fun validateConnection(baseUrl: CanonicalBaseUrl, token: SecretValue): ConnectionValidationResult =
-        connectionResult
+        connectionResult.also { connectionValidationCount++ }
 
     override suspend fun validateToken(
         activeBaseUrl: CanonicalBaseUrl,
@@ -228,15 +373,21 @@ private class FakeValidator(
     ): ConnectionValidationResult = tokenResult
 }
 
-private class FakeCacheMaintenance : ConnectionCacheMaintenance {
-    var clearCount: Int = 0
+private class FakeReplacementTransaction(
+    private val settingsStore: FakeSettingsStore,
+    private val tokenStore: FakeTokenStore,
+    private val failure: Throwable? = null
+) : ConnectionReplacementTransaction {
+    var commitCount: Int = 0
+        private set
+    var initialSyncScheduleCount: Int = 0
         private set
 
-    override suspend fun clearDomainSnapshot() {
-        clearCount++
+    override suspend fun commit(settings: ConnectionSettings, token: SecretValue) {
+        commitCount++
+        failure?.let { throw it }
+        settingsStore.replace(settings)
+        tokenStore.replaceToken(token)
+        initialSyncScheduleCount++
     }
-}
-
-private class FakeInitialSync : InitialConnectionSync {
-    override suspend fun requestInitialSync() = Unit
 }

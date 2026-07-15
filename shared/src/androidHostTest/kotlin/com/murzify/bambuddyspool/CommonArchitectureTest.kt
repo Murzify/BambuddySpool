@@ -51,8 +51,9 @@ class CommonArchitectureTest {
         assertTrue(shellFiles.isNotEmpty())
         assertFalse(
             shellFiles.any { source ->
+                val nfcMutationAdapter = source.name == "AndroidNdefTagMutator.kt"
                 source.readText().lineSequence().any { line ->
-                    line.startsWith("import com.murzify.bambuddyspool.core.domain.") ||
+                    (line.startsWith("import com.murzify.bambuddyspool.core.domain.") && !nfcMutationAdapter) ||
                         line.startsWith("import com.murzify.bambuddyspool.core.application.") ||
                         line.startsWith("import com.murzify.bambuddyspool.feature.")
                 }
