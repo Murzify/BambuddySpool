@@ -268,6 +268,19 @@ First-run Setup and Settings navigation render the shared form in the production
 remains observable; token, authorizations, and transient workflows remain excluded from saved/navigation state;
 targeted tests and an Android CLI smoke pass; the security gates and deferred test matrix are documented.
 
+- [x] [MVP]-[002] Wire a Constrained Read-Only Runtime
+Task Context
+Bind the production Setup/Settings form to the Android Keystore token boundary, the configured network-security
+policy, Ktor validation, and an atomic read-only initial snapshot refresh.  Until platform DataStore and Room
+factories are added, settings and the snapshot cache may be process-local, but that limitation must be explicit.
+The runtime must use only GET endpoints and must leave assignment POST, NFC tag write, overwrite, and clear paths
+unbound and unavailable.  It must not contact a private Bambuddy instance during implementation or automated tests.
+Task DOD
+A valid HTTPS connection can be tested and saved through the production graph; all requests are policy-checked and
+credentials stay in the Keystore/short-lived request boundary; a fully validated initial snapshot feeds Home,
+Spools, and Printers; refresh failure rolls back a replacement; HTTP remains fail-closed pending explicit consent;
+deterministic coverage and targeted Android checks pass; process-local persistence limitations are documented.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

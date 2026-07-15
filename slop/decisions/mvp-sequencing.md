@@ -18,6 +18,10 @@ MVP work is ordered as follows:
 4. Only then perform the owner-authorized, read-only smoke flow: setup, validation, save, initial sync, and cached
    Spools/Printers viewing.
 
+5. `[MVP]-[002]` provides a constrained runtime for that smoke flow. The repository has no platform Room or
+   DataStore factory yet, so its non-secret settings and snapshot cache are process-local; this is a POC limitation,
+   not a claim of durable offline storage. The token remains exclusively in Android Keystore storage.
+
 Assignment POSTs, NFC tag writes, overwrite, and clear remain disabled throughout this MVP sequence. No private
 instance request is made as part of MVP implementation or automated tests.
 

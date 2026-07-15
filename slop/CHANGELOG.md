@@ -2,6 +2,12 @@
 
 ## 2026-07-15
 
+- Added the constrained owner-authorized read-only MVP runtime: policy-checked Ktor validation, Keystore token
+  replacement, full GET-only initial snapshot synchronization, rollback on failed replacement, and process-local
+  cache projections for Home, Spools, and Printers.
+- Kept assignment POST and NFC tag mutation unbound. Documented the temporary absence of platform Room/DataStore
+  composition factories, so this POC does not claim durable settings or offline cache persistence.
+
 - Partially implemented `[SEC]-[002]` with a fail-closed network-security boundary: canonical configured origins and base paths,
   origin-scoped HTTP acknowledgement, manual redirect validation (same origin or same-host HTTP-to-HTTPS only), a
   five-hop limit, loop denial, and API-key attachment only after each target is approved.
