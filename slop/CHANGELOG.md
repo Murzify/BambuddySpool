@@ -2,6 +2,14 @@
 
 ## 2026-07-15
 
+- Partially implemented `[SEC]-[002]` with a fail-closed network-security boundary: canonical configured origins and base paths,
+  origin-scoped HTTP acknowledgement, manual redirect validation (same origin or same-host HTTP-to-HTTPS only), a
+  five-hop limit, loop denial, and API-key attachment only after each target is approved.
+- Kept Android OkHttp and iOS Darwin on their platform-default certificate and hostname verification. The common
+  TLS decision is exact-host and HTTPS-only; no global permissive trust manager is installed, and an unavailable
+  platform-specific certificate retry remains fail-closed rather than weakening transport security. The remaining
+  TLS retry is explicitly tracked as `[SEC]-[005]`; `[SEC]-[002]` is not complete until it is wired.
+
 - Completed `[SEC]-[001]` with AES-GCM token encryption backed by an Android Keystore key and an application-private
   encrypted blob. The Android MVP graph receives the storage lazily without adding token text to UI, navigation,
   settings, cache, logs, resources, or clipboard.

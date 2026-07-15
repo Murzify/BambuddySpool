@@ -13,9 +13,8 @@ import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.post
+import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
@@ -26,6 +25,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
 import io.ktor.http.path
+import io.ktor.http.takeFrom
 import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
@@ -57,7 +57,7 @@ class KtorBambuddyRepository(
     private val client: HttpClient,
     private val baseUrl: CanonicalBaseUrl,
     private val credentials: BambuddyCredentialProvider,
-    private val securityPolicy: BambuddyNetworkSecurityPolicy = AllowingBambuddyNetworkSecurityPolicy
+    private val securityPolicy: BambuddyNetworkSecurityPolicy = DenyingBambuddyNetworkSecurityPolicy
 ) : BambuddyRepository {
 
     override suspend fun validateAuth(): BambuddyNetworkResult<Unit> = request(
@@ -139,23 +139,12 @@ class KtorBambuddyRepository(
             )
         }
 
-        val token = credentials.loadApiToken()
-            ?: return BambuddyNetworkResult.Failure(BambuddyNetworkError.MissingCredential)
-
         val response = try {
-            token.useForTrustedRequestBoundary { plainToken ->
-                when (method) {
-                    HttpMethod.Get -> client.get(url) {
-                        header(API_KEY_HEADER, plainToken)
-                        configure()
-                    }
-                    HttpMethod.Post -> client.post(url) {
-                        header(API_KEY_HEADER, plainToken)
-                        configure()
-                    }
-                    else -> error("Unsupported Bambuddy HTTP method.")
-                }
-            }
+            executeValidatedRequest(method = method, initialUrl = url, configure = configure)
+        } catch (_: MissingCredentialException) {
+            return BambuddyNetworkResult.Failure(BambuddyNetworkError.MissingCredential)
+        } catch (denied: RedirectDeniedException) {
+            return BambuddyNetworkResult.Failure(BambuddyNetworkError.SecurityPolicy(denied.reason))
         } catch (throwable: Throwable) {
             if (throwable is CancellationException) throw throwable
             return BambuddyNetworkResult.Failure(classifyThrowable(throwable))
@@ -180,7 +169,84 @@ class KtorBambuddyRepository(
             path(*allSegments.toTypedArray())
         }.buildString()
     }
+
+    /**
+     * Ktor redirect following remains disabled. Every manually followed Location is validated before a fresh request
+     * receives the API key, so a rejected target never observes credentials.
+     */
+    @Suppress("ThrowsCount")
+    private suspend fun executeValidatedRequest(
+        method: HttpMethod,
+        initialUrl: String,
+        configure: HttpRequestBuilder.() -> Unit
+    ): HttpResponse {
+        val token = credentials.loadApiToken() ?: throw MissingCredentialException
+        var currentUrl = initialUrl
+        val visitedUrls = mutableSetOf(currentUrl)
+        var redirectCount = 0
+        return token.useForTrustedRequestBoundary { plainToken ->
+            while (true) {
+                val response = client.request(currentUrl) {
+                    this.method = method
+                    header(API_KEY_HEADER, plainToken)
+                    configure()
+                }
+                if (response.status.value !in REDIRECT_STATUS_RANGE) return@useForTrustedRequestBoundary response
+
+                val location = response.headers[HttpHeaders.Location]
+                    ?: throw RedirectDeniedException(SecurityPolicyFailureReason.RedirectDenied)
+                val targetUrl = resolveRedirect(currentUrl, location)
+                    ?: throw RedirectDeniedException(SecurityPolicyFailureReason.RedirectDenied)
+                redirectCount += 1
+                if (!visitedUrls.add(targetUrl)) {
+                    throw RedirectDeniedException(SecurityPolicyFailureReason.RedirectDenied)
+                }
+                when (
+                    val decision = securityPolicy.validateRedirect(
+                        baseUrl = baseUrl,
+                        fromUrl = currentUrl,
+                        toUrl = targetUrl,
+                        redirectCount = redirectCount
+                    )
+                ) {
+                    BambuddySecurityDecision.Allow -> {
+                        response.bodyAsChannel().cancel(null)
+                        currentUrl = targetUrl
+                    }
+                    is BambuddySecurityDecision.Deny -> throw RedirectDeniedException(decision.reason)
+                }
+            }
+            error("Unreachable")
+        }
+    }
 }
+
+private fun resolveRedirect(currentUrl: String, location: String): String? = try {
+    when {
+        location.startsWith("http://", ignoreCase = true) || location.startsWith("https://", ignoreCase = true) ->
+            URLBuilder().apply { takeFrom(location) }.buildString()
+        location.startsWith('/') || location.startsWith('?') || !location.contains("://") -> {
+            val current = URLBuilder().apply { takeFrom(currentUrl) }.build()
+            val relativeTarget = when {
+                location.startsWith('/') -> location
+                location.startsWith('?') -> "${current.encodedPath}$location"
+                else -> "${current.encodedPath.substringBeforeLast('/', missingDelimiterValue = "")}/$location"
+            }
+            URLBuilder().apply {
+                takeFrom("${current.protocol.name}://${current.host.forUrlAuthority()}:${current.port}$relativeTarget")
+            }.buildString()
+        }
+        else -> null
+    }
+} catch (_: IllegalArgumentException) {
+    null
+}
+
+private fun String.forUrlAuthority(): String = if (':' in this) "[$this]" else this
+
+private class RedirectDeniedException(val reason: SecurityPolicyFailureReason) : IllegalStateException()
+
+private data object MissingCredentialException : IllegalStateException()
 
 private suspend fun <T> HttpResponse.toNetworkResult(
     endpoint: BambuddyEndpoint,
@@ -291,3 +357,4 @@ private const val ASSIGNMENTS_LIMIT_BYTES = 16L * MEBIBYTE
 private const val SPOOLS_SNAPSHOT_LIMIT_BYTES = 64L * MEBIBYTE
 private val CLIENT_ERROR_RANGE = 400..499
 private val SERVER_ERROR_RANGE = 500..599
+private val REDIRECT_STATUS_RANGE = 300..399

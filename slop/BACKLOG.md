@@ -350,11 +350,23 @@ Store the token only through Keystore-backed SecureStorage. Never reveal, copy, 
 Task DOD
 Storage/replace/delete/invalidation and backup tests pass; release rules are verified; secret representations are redacted; failed replacement preserves the old token; repository scans are clean.
 
-- [ ] [SEC]-[002] Enforce URL, Redirect, HTTP, and TLS Policies
+- [ ] [SEC]-[002] Enforce URL, Redirect, HTTP, and TLS Policies (partially implemented; TLS retry moved to [SEC]-[005])
 Task Context
 Canonicalize origin plus optional base path and reject userinfo/query/fragment/invalid schemes/hosts. Allow redirects only same-origin or same-host HTTP-to-HTTPS, maximum five; deny downgrade, host/DNS-IP changes, loops, and credential forwarding before validation. Require origin-scoped HTTP consent. Allow certificate-failure-only TLS bypass for exact configured HTTPS hostname, never globally or through redirects; reset by host, retain across port/path, and make reversible.
 Task DOD
 Enforcement exists in platform clients, not only UI; adversarial tests pass; no global permissive trust manager exists; base paths and consent/reset behavior are exact; warnings clearly explain risk.
+
+- [ ] [SEC]-[005] Implement Safe Host-Scoped TLS Certificate Retry
+Task Context
+Implement the remaining certificate-validation retry after a classified TLS failure. It must be a platform-specific
+adapter for Android OkHttp and iOS Darwin that can bypass verification only for the exact configured HTTPS hostname
+after explicit confirmation, never for another host, subdomain, HTTP request, redirect target, or non-certificate
+failure. The default platform trust and hostname verification must remain active for all other requests; global
+trust-all managers and permissive hostname verifiers are forbidden.
+Task DOD
+Android and iOS adapters compile and prove exact-host-only retry with adversarial tests for subdomain, host change,
+redirect, HTTP, non-certificate failure, reset/reversal, and normal TLS preservation. No global permissive trust
+configuration exists. `[SEC]-[002]` can be completed only when this task's adapter is wired at the client boundary.
 
 - [ ] [SEC]-[003] Implement Ephemeral Diagnostics and Structural Redaction
 Task Context

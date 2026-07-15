@@ -10,6 +10,7 @@ import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.security.SecretValue
 import com.murzify.bambuddyspool.core.settings.BaseUrlParseResult
 import com.murzify.bambuddyspool.core.settings.CanonicalBaseUrl
+import com.murzify.bambuddyspool.core.settings.ConnectionSettings
 import com.murzify.bambuddyspool.core.settings.parseCanonicalBaseUrl
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -135,6 +136,46 @@ class KtorBambuddyRepositoryTest {
         }
     }
 
+    @Test
+    fun deniedRedirectNeverSendsCredentialToTarget() = runTest {
+        val requests = mutableListOf<HttpRequestData>()
+        val repository = repository { request ->
+            requests += request
+            respond(
+                content = "",
+                status = HttpStatusCode.Found,
+                headers = headersOf(HttpHeaders.Location, "https://evil.example/steal")
+            )
+        }
+
+        assertEquals(
+            BambuddyNetworkError.SecurityPolicy(SecurityPolicyFailureReason.RedirectDenied),
+            assertFailure(repository.validateAuth())
+        )
+        assertEquals(1, requests.size)
+        assertEquals("synthetic-token", requests.single().headers["X-API-Key"])
+    }
+
+    @Test
+    fun deniedInitialRequestDoesNotLoadCredential() = runTest {
+        var credentialLoads = 0
+        val repository = KtorBambuddyRepository(
+            client = HttpClient(MockEngine { error("Denied request must not reach the client") }),
+            baseUrl = canonicalBaseUrl("https://example.test"),
+            credentials = BambuddyCredentialProvider {
+                credentialLoads += 1
+                SecretValue.fromPlainText("synthetic-token")
+            },
+            securityPolicy = DenyingBambuddyNetworkSecurityPolicy
+        )
+
+        assertEquals(
+            BambuddyNetworkError.SecurityPolicy(SecurityPolicyFailureReason.InitialRequestDenied),
+            assertFailure(repository.validateAuth())
+        )
+        assertEquals(0, credentialLoads)
+    }
+
     private fun repositoryResponding(
         status: HttpStatusCode = HttpStatusCode.OK,
         content: String = AUTH_ME_JSON
@@ -153,7 +194,7 @@ class KtorBambuddyRepositoryTest {
     private fun repository(
         baseUrl: String = "https://example.test",
         token: String = "synthetic-token",
-        policy: BambuddyNetworkSecurityPolicy = AllowingBambuddyNetworkSecurityPolicy,
+        policy: BambuddyNetworkSecurityPolicy = trustedPolicy(baseUrl),
         handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = {
             respond(content = AUTH_ME_JSON, headers = JSON_HEADERS)
         }
@@ -205,6 +246,18 @@ class KtorBambuddyRepositoryTest {
         is BaseUrlParseResult.Failure -> error("Invalid test base URL: $value")
     }
 
+    private fun trustedPolicy(baseUrl: String): BambuddyNetworkSecurityPolicy {
+        val parsed = canonicalBaseUrl(baseUrl)
+        return ConfiguredBambuddyNetworkSecurityPolicy(
+            ConnectionSettings(
+                baseUrl = parsed,
+                defaultPrinterId = null,
+                httpConsentOrigin = parsed.origin.takeIf { it.scheme.wireName == "http" },
+                tlsOverrideHostname = null
+            )
+        )
+    }
+
     private fun printerId(value: Long): PrinterId = assertNotNull(PrinterId.from(value))
 
     private fun spoolId(value: Long): SpoolId = assertNotNull(SpoolId.from(value))
@@ -219,6 +272,8 @@ class KtorBambuddyRepositoryTest {
             toUrl: String,
             redirectCount: Int
         ): BambuddySecurityDecision = BambuddySecurityDecision.Allow
+
+        override fun permitsCertificateBypass(baseUrl: CanonicalBaseUrl, requestUrl: String): Boolean = false
     }
 
     private class SyntheticCertificateFailure : IOException("synthetic certificate failure")
