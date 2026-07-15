@@ -292,6 +292,19 @@ Task DOD
 a deterministic MockEngine test rejects the slashless variant; the root cause and verification are documented
 without private URL, API key, or inventory data.
 
+- [x] [MVP]-[004] Publish Safe Read-Only Summaries for Unsupported Topology
+Task Context
+Keep `AtomicSnapshotSynchronizer` strict for supported production snapshots and mutation workflows. When an
+otherwise successful owner-authorized MVP read-only refresh is rejected solely because physical slot topology is
+unsupported, publish only accurate printer and spool summaries through a separately named degraded read-only
+projection. Do not invent slots, retain or expose assignments as mappings, or enable assignment/NFC/tag mutations.
+Represent the unsupported-topology degradation with the existing typed cache error/availability model.
+Task DOD
+Supported full snapshots retain their strict atomic behavior. Unsupported topology can publish safe read-only
+Home/Spools/Printers summaries only after all required GET data is obtained; slots and assignments remain absent
+and every mutation remains hard-disabled with a typed reason. Deterministic tests cover both paths and no live
+instance data is committed.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

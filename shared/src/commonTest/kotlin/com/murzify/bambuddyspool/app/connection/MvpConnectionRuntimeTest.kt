@@ -7,6 +7,7 @@ import com.murzify.bambuddyspool.core.domain.AssignmentCommand
 import com.murzify.bambuddyspool.core.domain.Printer
 import com.murzify.bambuddyspool.core.domain.PrinterId
 import com.murzify.bambuddyspool.core.domain.PrinterStatus
+import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.Spool
 import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.domain.VirtualTray
@@ -15,8 +16,13 @@ import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
 import com.murzify.bambuddyspool.core.network.BambuddyRepository
 import com.murzify.bambuddyspool.core.network.TransportFailureReason
 import com.murzify.bambuddyspool.core.projections.CacheProjectionState
+import com.murzify.bambuddyspool.core.projections.CacheProjectionError
 import com.murzify.bambuddyspool.core.projections.MutationAvailability
 import com.murzify.bambuddyspool.core.projections.PageRequest
+import com.murzify.bambuddyspool.core.projections.PagedResult
+import com.murzify.bambuddyspool.core.projections.PrinterSummaryProjection
+import com.murzify.bambuddyspool.core.projections.PrinterSlotProjection
+import com.murzify.bambuddyspool.core.projections.SpoolSummaryProjection
 import com.murzify.bambuddyspool.core.security.SecretValue
 import com.murzify.bambuddyspool.core.security.SecureTokenStore
 import com.murzify.bambuddyspool.core.settings.ConnectionSettings
@@ -68,6 +74,53 @@ class MvpConnectionRuntimeTest {
         assertEquals(MutationAvailability.Disabled::class, content.availability.mutation::class)
         assertEquals(2, sessions.created.size)
         assertEquals(2, sessions.closed)
+        val printers = assertIs<CacheProjectionState.Content<List<PrinterSummaryProjection>>>(
+            runtime.cache.observePrinters().first()
+        )
+        assertEquals(1, printers.value.single().externalSlotCount)
+        assertEquals(0, printers.value.single().assignedSlotCount)
+        assertEquals(null, printers.availability.nonBlockingError)
+    }
+
+    @Test
+    fun unsupportedTopologyPublishesOnlySafeReadOnlySummaries() = runTest {
+        val sessions = RecordingSessions(
+            listOf(
+                FakeRepository(),
+                FakeRepository(
+                    externalTrayId = 7,
+                    assignments = listOf(Assignment(spoolId(), SlotKey(printerId(), 255, 0), true, false))
+                )
+            )
+        )
+        val runtime = runtime(sessions = sessions, tokenStore = FakeTokenStore())
+
+        runtime.form.accept(ConnectionFormIntent.BaseUrlChanged(HTTPS_URL))
+        runtime.form.save("new-token")
+        advanceUntilIdle()
+
+        assertEquals(ConnectionFormMessage.SaveSucceeded, runtime.form.state.value.message)
+        val printers = assertIs<CacheProjectionState.Content<List<PrinterSummaryProjection>>>(
+            runtime.cache.observePrinters().first()
+        )
+        val printer = printers.value.single()
+        assertEquals(0, printer.externalSlotCount)
+        assertEquals(0, printer.assignedSlotCount)
+        assertEquals(MutationAvailability.Disabled::class, printers.availability.mutation::class)
+        assertEquals(
+            com.murzify.bambuddyspool.core.projections.MutationDisabledReason.UnsupportedTopology,
+            (printers.availability.mutation as MutationAvailability.Disabled).reason
+        )
+        assertIs<CacheProjectionError.UnsupportedTopology>(printers.availability.nonBlockingError)
+        val slots = assertIs<CacheProjectionState.Content<List<PrinterSlotProjection>>>(
+            runtime.cache.observePrinterSlots(printerId()).first()
+        )
+        assertEquals(emptyList(), slots.value)
+        val spools = assertIs<CacheProjectionState.Content<PagedResult<SpoolSummaryProjection>>>(
+            runtime.cache.observeDefaultSpoolPage(PageRequest(limit = 10, offset = 0)).first()
+        )
+        val summary = spools.value.items.single()
+        assertEquals(null, summary.assignedSlot)
     }
 
     @Test
@@ -152,23 +205,28 @@ private class FakeTokenStore(initial: SecretValue? = null) : SecureTokenStore {
     override suspend fun currentTokenForReplacement(): SecretValue? = value
 }
 
-private class FakeRepository(private val printersFailure: Boolean = false) : BambuddyRepository {
+private class FakeRepository(
+    private val printersFailure: Boolean = false,
+    private val externalTrayId: Int = 255,
+    private val assignments: List<Assignment> = emptyList()
+) : BambuddyRepository {
     override suspend fun validateAuth(): BambuddyNetworkResult<Unit> = BambuddyNetworkResult.Success(Unit)
     override suspend fun getPrinters(): BambuddyNetworkResult<List<Printer>> = if (printersFailure) {
         BambuddyNetworkResult.Failure(BambuddyNetworkError.Transport(TransportFailureReason.Unknown))
     } else BambuddyNetworkResult.Success(listOf(printer()))
     override suspend fun getPrinterStatus(printerId: PrinterId): BambuddyNetworkResult<PrinterStatus> =
-        BambuddyNetworkResult.Success(PrinterStatus(printer(), true, listOf(VirtualTray(255, "External"))))
+        BambuddyNetworkResult.Success(PrinterStatus(printer(), true, listOf(VirtualTray(externalTrayId, "External"))))
     override suspend fun getSpools(includeArchived: Boolean): BambuddyNetworkResult<List<Spool>> =
         BambuddyNetworkResult.Success(listOf(spool()))
     override suspend fun getSpool(spoolId: SpoolId): BambuddyNetworkResult<Spool> = BambuddyNetworkResult.Success(spool())
     override suspend fun getAssignments(printerId: PrinterId?): BambuddyNetworkResult<List<Assignment>> =
-        BambuddyNetworkResult.Success(emptyList())
+        BambuddyNetworkResult.Success(assignments)
     override suspend fun createAssignment(command: AssignmentCommand): BambuddyNetworkResult<Assignment> = error("Read-only MVP")
 }
 
 private fun canonical(value: String) = (parseCanonicalBaseUrl(value) as com.murzify.bambuddyspool.core.settings.BaseUrlParseResult.Success).value
 private fun printer() = Printer(printerId(), "Printer")
 private fun printerId() = requireNotNull(PrinterId.from(1))
-private fun spool() = Spool(requireNotNull(SpoolId.from(1)), "Spool", null, "PLA", null, 100)
+private fun spool() = Spool(spoolId(), "Spool", null, "PLA", null, 100)
+private fun spoolId() = requireNotNull(SpoolId.from(1))
 private const val HTTPS_URL = "https://bambuddy.example"

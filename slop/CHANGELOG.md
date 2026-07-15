@@ -2,6 +2,12 @@
 
 ## 2026-07-15
 
+- Completed `[MVP]-[004]`: retained strict atomic rejection of unsupported physical slot topology while adding a
+  separately named GET-only MVP fallback that can publish only printer and spool summaries. The degraded cache
+  contains no slots or assignments, exposes a typed unsupported-topology state, and keeps every mutation/NFC/tag
+  write path disabled. Deterministic tests cover both supported full snapshots and the safe degraded path; no live
+  instance data was recorded.
+
 - Completed `[MVP]-[003]`: preserved the contract-required terminal slash on the printer collection endpoint and
   added a deterministic regression test that treats the slashless variant as `404`. The discovery came from an
   owner-authorized read-only contract check; no private host, token, or inventory data is recorded.

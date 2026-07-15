@@ -5,6 +5,7 @@ package com.murzify.bambuddyspool.app.connection
 import com.murzify.bambuddyspool.core.domain.PrinterId
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.domain.UnsupportedTopology
 import com.murzify.bambuddyspool.core.network.BambuddyCredentialProvider
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
@@ -13,6 +14,7 @@ import com.murzify.bambuddyspool.core.network.ConfiguredBambuddyNetworkSecurityP
 import com.murzify.bambuddyspool.core.network.KtorBambuddyRepository
 import com.murzify.bambuddyspool.core.network.createBambuddyHttpClient
 import com.murzify.bambuddyspool.core.projections.CacheAvailability
+import com.murzify.bambuddyspool.core.projections.CacheProjectionError
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.CacheProjectionState
 import com.murzify.bambuddyspool.core.projections.MutationAvailability
@@ -130,7 +132,20 @@ internal class MvpConnectionRuntime(
                         clock = SyncClock { kotlin.time.Clock.System.now().toEpochMilliseconds() },
                         scope = scope
                     )
-                    check(synchronizer.sync(SnapshotSyncTrigger.Initial) is SnapshotSyncResult.Success) {
+                    val result = synchronizer.sync(SnapshotSyncTrigger.Initial)
+                    val published = when (result) {
+                        SnapshotSyncResult.Success -> true
+                        is SnapshotSyncResult.Failure -> when (val reason = result.reason) {
+                            is com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure.UnsupportedTopology ->
+                                MvpUnsupportedTopologyReadOnlyFallback(
+                                    repository = session.repository,
+                                    store = snapshotCache,
+                                    clock = SyncClock { kotlin.time.Clock.System.now().toEpochMilliseconds() }
+                                ).sync(reason.failure) is SnapshotSyncResult.Success
+                            else -> false
+                        }
+                    }
+                    check(published) {
                         "Initial read-only snapshot synchronization failed."
                     }
                 } finally {
@@ -191,10 +206,15 @@ private fun BambuddyNetworkResult<Unit>.toValidationResult(): ConnectionValidati
     )
 }
 
-/** Small process-local cache used only while no platform Room factory exists. It never enables mutations. */
+/**
+ * Small process-local cache used only while no platform Room factory exists. It never enables mutations.
+ *
+ * An unsupported physical topology can be represented only as a typed read-only degradation. Its snapshot has no
+ * slots or assignments, which prevents UI consumers from treating unverified server coordinates as a mapping.
+ */
 private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
     private val mutex = Mutex()
-    private val snapshot = MutableStateFlow<DomainSnapshot?>(null)
+    private val snapshot = MutableStateFlow<ReadOnlyCacheEntry?>(null)
     private var generation = SnapshotGeneration.from(0) ?: error("Initial generation is invalid.")
 
     override suspend fun currentGeneration(): SnapshotGeneration = mutex.withLock { generation }
@@ -205,13 +225,25 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
     ): SnapshotPublishResult = mutex.withLock {
         if (generation != onlyIfCurrentGeneration) return@withLock SnapshotPublishResult.StaleGeneration
         generation = SnapshotGeneration.nextAfter(generation) ?: return@withLock SnapshotPublishResult.Rejected("Generation overflow")
-        this.snapshot.value = snapshot
+        this.snapshot.value = ReadOnlyCacheEntry(snapshot, null)
+        SnapshotPublishResult.Published
+    }
+
+    suspend fun publishUnsupportedTopologySnapshot(
+        snapshot: DomainSnapshot,
+        onlyIfCurrentGeneration: SnapshotGeneration,
+        failure: UnsupportedTopology
+    ): SnapshotPublishResult = mutex.withLock {
+        if (generation != onlyIfCurrentGeneration) return@withLock SnapshotPublishResult.StaleGeneration
+        generation = SnapshotGeneration.nextAfter(generation) ?: return@withLock SnapshotPublishResult.Rejected("Generation overflow")
+        this.snapshot.value = ReadOnlyCacheEntry(snapshot, failure)
         SnapshotPublishResult.Published
     }
 
     override fun observePrinters(): Flow<CacheProjectionState<List<PrinterSummaryProjection>>> = snapshot.map { value ->
-        value?.let { current ->
-            content(current.printers.map { printer ->
+        value?.let { entry ->
+            val current = entry.snapshot
+            content(entry.degradation, current.printers.map { printer ->
                 PrinterSummaryProjection(
                     id = printer.id,
                     name = printer.name,
@@ -224,26 +256,38 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
     }
 
     override fun observePrinterSlots(printerId: PrinterId): Flow<CacheProjectionState<List<PrinterSlotProjection>>> =
-        snapshot.map { value -> value?.let { content(it.slots.filter { slot -> slot.key.printerId == printerId }.map { slot ->
-            val assignment = it.assignments.firstOrNull { candidate -> candidate.slot == slot.key }
-            PrinterSlotProjection(slot.key, it.printers.firstOrNull { printer -> printer.id == printerId }?.name, slot.kind, slot.label,
-                assignment?.let { assigned -> it.spools.firstOrNull { spool -> spool.id == assigned.spoolId }?.let { spool ->
-                    com.murzify.bambuddyspool.core.projections.AssignedSpoolProjection(spool.id, spool.name, spool.material, spool.colorName)
-                } })
-        }) } ?: CacheProjectionState.InitialLoading }
+        snapshot.map { value ->
+            value?.let { entry ->
+                val current = entry.snapshot
+                content(entry.degradation, current.slots.filter { it.key.printerId == printerId }.map { slot ->
+                    val assignment = current.assignments.firstOrNull { it.slot == slot.key }
+                    PrinterSlotProjection(
+                        slot.key,
+                        current.printers.firstOrNull { it.id == printerId }?.name,
+                        slot.kind,
+                        slot.label,
+                        assignment?.let { assigned -> current.spools.firstOrNull { it.id == assigned.spoolId }?.let { spool ->
+                            com.murzify.bambuddyspool.core.projections.AssignedSpoolProjection(
+                                spool.id, spool.name, spool.material, spool.colorName
+                            )
+                        } }
+                    )
+                })
+            } ?: CacheProjectionState.InitialLoading
+        }
 
     override fun observeDefaultSpoolPage(page: PageRequest): Flow<CacheProjectionState<PagedResult<SpoolSummaryProjection>>> =
-        snapshot.map { value -> value?.let { content(it.toSpoolPage(page, "")) } ?: CacheProjectionState.InitialLoading }
+        snapshot.map { value -> value?.let { content(it.degradation, it.snapshot.toSpoolPage(page, "")) } ?: CacheProjectionState.InitialLoading }
 
     override fun observeSpoolSearch(
         queries: Flow<SpoolSearchQuery>,
         page: PageRequest
     ): Flow<CacheProjectionState<PagedResult<SpoolSummaryProjection>>> = combine(snapshot, queries) { value, query ->
-        value?.let { content(it.toSpoolPage(page, query.rawText)) } ?: CacheProjectionState.InitialLoading
+        value?.let { content(it.degradation, it.snapshot.toSpoolPage(page, query.rawText)) } ?: CacheProjectionState.InitialLoading
     }
 
     override fun observeSpool(spoolId: SpoolId): Flow<CacheProjectionState<SpoolSummaryProjection?>> = snapshot.map { value ->
-        value?.let { content(it.toSpool(spoolId)) } ?: CacheProjectionState.InitialLoading
+        value?.let { content(it.degradation, it.snapshot.toSpool(spoolId)) } ?: CacheProjectionState.InitialLoading
     }
 
     private fun DomainSnapshot.toSpoolPage(page: PageRequest, query: String): PagedResult<SpoolSummaryProjection> = PagedResult(
@@ -255,11 +299,81 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
         SpoolSummaryProjection(spool.id, spool.name, spool.manufacturer, spool.material, spool.colorName, spool.remainingGrams, null, null, null)
     }
 
-    private fun <T> content(value: T): CacheProjectionState.Content<T> = CacheProjectionState.Content(
+    private fun <T> content(degradation: UnsupportedTopology?, value: T): CacheProjectionState.Content<T> = CacheProjectionState.Content(
         value,
-        CacheAvailability(false, null, MutationAvailability.Disabled(com.murzify.bambuddyspool.core.projections.MutationDisabledReason.NoCachedSnapshot))
+        CacheAvailability(
+            isStale = false,
+            nonBlockingError = degradation?.let(CacheProjectionError::UnsupportedTopology),
+            mutation = MutationAvailability.Disabled(
+                if (degradation == null) com.murzify.bambuddyspool.core.projections.MutationDisabledReason.NoCachedSnapshot
+                else com.murzify.bambuddyspool.core.projections.MutationDisabledReason.UnsupportedTopology
+            )
+        )
     )
 }
+
+private data class ReadOnlyCacheEntry(val snapshot: DomainSnapshot, val degradation: UnsupportedTopology?)
+
+/**
+ * Narrow MVP-only escape hatch for a server whose physical topology has no supported mapping rule.
+ *
+ * It repeats the mandatory GET snapshot reads and publishes printer/spool summaries only. Assignments and virtual
+ * trays are deliberately discarded: accepting either as a SlotKey mapping would weaken the full synchronizer's
+ * fail-closed invariant.
+ */
+private class MvpUnsupportedTopologyReadOnlyFallback(
+    private val repository: BambuddyRepository,
+    private val store: ReadOnlySnapshotCache,
+    private val clock: SyncClock
+) {
+    suspend fun sync(failure: UnsupportedTopology): SnapshotSyncResult = try {
+        val generation = store.currentGeneration()
+        val printers = repository.getPrinters().valueOrAbort()
+        requireUnique(printers.map { it.id }, "Duplicate printer IDs")
+        printers.forEach { printer ->
+            val status = repository.getPrinterStatus(printer.id).valueOrAbort()
+            requireValid(status.printer.id == printer.id, "Printer status does not match requested printer")
+        }
+        val spools = repository.getSpools(includeArchived = true).valueOrAbort()
+        requireUnique(spools.map { it.id }, "Duplicate spool IDs")
+        repository.getAssignments().valueOrAbort()
+
+        store.publishUnsupportedTopologySnapshot(
+            snapshot = DomainSnapshot(printers, emptyList(), spools, emptyList(), clock.nowEpochMillis()),
+            onlyIfCurrentGeneration = generation,
+            failure = failure
+        ).toSyncResult()
+    } catch (abort: MvpReadOnlyFallbackAbort) {
+        SnapshotSyncResult.Failure(abort.failure)
+    }
+
+    private fun <T> BambuddyNetworkResult<T>.valueOrAbort(): T = when (this) {
+        is BambuddyNetworkResult.Success -> value
+        is BambuddyNetworkResult.Failure -> throw MvpReadOnlyFallbackAbort(
+            com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure.Network(error)
+        )
+    }
+
+    private fun <T> requireUnique(values: List<T>, reason: String) = requireValid(values.toSet().size == values.size, reason)
+
+    private fun requireValid(condition: Boolean, reason: String) {
+        if (!condition) throw MvpReadOnlyFallbackAbort(
+            com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure.InvalidSnapshot(reason)
+        )
+    }
+
+    private fun SnapshotPublishResult.toSyncResult(): SnapshotSyncResult = when (this) {
+        SnapshotPublishResult.Published -> SnapshotSyncResult.Success
+        SnapshotPublishResult.StaleGeneration -> SnapshotSyncResult.Failure(
+            com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure.StaleGeneration
+        )
+        is SnapshotPublishResult.Rejected -> SnapshotSyncResult.Failure(
+            com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure.StoreRejected(reason)
+        )
+    }
+}
+
+private class MvpReadOnlyFallbackAbort(val failure: com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure) : Throwable()
 
 private object RejectedTokenStore : SecureTokenStore {
     override suspend fun replaceToken(value: SecretValue): Nothing = error("Android SEC-001 storage is required.")
