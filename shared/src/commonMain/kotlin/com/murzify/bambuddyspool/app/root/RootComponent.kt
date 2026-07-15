@@ -5,6 +5,8 @@ import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pushNew
 import com.arkivanov.decompose.router.stack.pushToFront
+import com.arkivanov.essenty.lifecycle.doOnDestroy
+import com.murzify.bambuddyspool.app.connection.MvpConnectionRuntime
 import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.core.application.ComponentScope
 import com.murzify.bambuddyspool.core.application.Reducer
@@ -31,9 +33,15 @@ import com.murzify.bambuddyspool.feature.printers.PrintersComponent
 import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 /** Connection status rendered by Home. Network operations update this through explicit intents. */
@@ -286,12 +294,21 @@ private data class RootChild(val component: DestinationStackComponent)
 /** Shared Decompose root and UDF boundary rendered by both platform shells. */
 @Inject
 @SingleIn(ComponentScope::class)
-class RootComponent(
+class RootComponent internal constructor(
     componentContext: ComponentContext,
     nfcService: NfcService,
-    spoolProjectionRepository: CacheProjectionRepository
+    spoolProjectionRepository: CacheProjectionRepository,
+    private val connectionRuntime: MvpConnectionRuntime = MvpConnectionRuntime(
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    )
 ) : ComponentContext by componentContext,
     UdfComponent<RootState, RootIntent> {
+    /** Shared production Setup/Settings controller; it never exposes token text or saved authorization state. */
+    val connectionForm = connectionRuntime.form
+
+    /** Observable non-secret settings state used only for shared presentation. */
+    val connectionSettings = connectionRuntime.settings
+
     /** The shared browser owns safe search/filter/detail restoration for the Spools destination. */
     val spoolsComponent = SpoolsComponent(componentContext, spoolProjectionRepository)
 
@@ -310,6 +327,7 @@ class RootComponent(
 
     /** NFC coordination is process-local; state keeper never sees accepted scans or mutation boundaries. */
     private var nfcCoordination = NfcScanCoordinationState()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val childStack = childStack(
         source = navigation,
@@ -323,9 +341,24 @@ class RootComponent(
     }
 
     init {
+        lifecycle.doOnDestroy { scope.cancel() }
         stateKeeper.register("root-navigation", RestoredRootState.serializer()) {
             mutableState.value.let { current ->
                 RestoredRootState(destination = current.destination)
+            }
+        }
+        scope.launch {
+            connectionSettings.collectLatest { settings ->
+                accept(
+                    RootIntent.UpdateHomeStatus(
+                        connectionState = if (settings.baseUrl == null) {
+                            HomeConnectionState.NotConfigured
+                        } else {
+                            HomeConnectionState.Stale
+                        },
+                        nfcState = nfcService.availability.toHomeNfcState()
+                    )
+                )
             }
         }
     }

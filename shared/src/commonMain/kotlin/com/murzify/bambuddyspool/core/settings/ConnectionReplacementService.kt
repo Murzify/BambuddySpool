@@ -115,7 +115,10 @@ enum class ConnectionValidationFailureReason {
     Unreachable,
     AuthenticationRejected,
     IncompatibleResponse,
-    TlsValidationFailed
+    TlsValidationFailed,
+
+    /** MVP safety gate: no request or token retention is allowed before SEC-001 and SEC-002. */
+    SecurityPolicyNotReady
 }
 
 /**

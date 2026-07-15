@@ -43,6 +43,7 @@ import com.murzify.bambuddyspool.shared.resources.connection_required_fields
 import com.murzify.bambuddyspool.shared.resources.connection_save
 import com.murzify.bambuddyspool.shared.resources.connection_save_succeeded
 import com.murzify.bambuddyspool.shared.resources.connection_saving
+import com.murzify.bambuddyspool.shared.resources.connection_security_policy_not_ready
 import com.murzify.bambuddyspool.shared.resources.connection_settings_title
 import com.murzify.bambuddyspool.shared.resources.connection_setup_title
 import com.murzify.bambuddyspool.shared.resources.connection_test
@@ -187,6 +188,7 @@ private fun connectionMessage(message: ConnectionFormMessage): String = stringRe
             ConnectionValidationFailureReason.AuthenticationRejected -> Res.string.connection_auth_rejected
             ConnectionValidationFailureReason.IncompatibleResponse -> Res.string.connection_incompatible
             ConnectionValidationFailureReason.TlsValidationFailed -> Res.string.connection_tls_failed
+            ConnectionValidationFailureReason.SecurityPolicyNotReady -> Res.string.connection_security_policy_not_ready
         }
     }
 )

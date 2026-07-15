@@ -254,6 +254,20 @@ Format and inspect recomposition scope, stable keys, coroutine lifecycle, StateF
 Task DOD
 Format, Detekt, Lint, architecture checks, and tests pass; main thread and UI memory rules hold; warnings are triaged; flow documentation matches code.
 
+## MVP Sequencing (Owner-Authorized)
+
+- [x] [MVP]-[001] Wire Safe Production Setup and Settings
+Task Context
+Connect the existing shared Setup/Settings URL/token form to the production root. Use a concrete non-secret
+connection/settings presentation boundary and the existing cache projection boundary, while retaining the API token
+only in unsaved Compose memory. Before `[SEC]-[001]` and `[SEC]-[002]`, the form must fail closed: it must not retain
+the token or make a network request, and it must explain why real connection validation/save is unavailable.
+Assignment POSTs and NFC tag write/overwrite/clear paths remain disabled. Do not contact the private instance.
+Task DOD
+First-run Setup and Settings navigation render the shared form in the production graph; safe settings/cache state
+remains observable; token, authorizations, and transient workflows remain excluded from saved/navigation state;
+targeted tests and an Android CLI smoke pass; the security gates and deferred test matrix are documented.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

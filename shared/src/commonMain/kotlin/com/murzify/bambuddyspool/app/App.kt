@@ -37,6 +37,8 @@ import com.murzify.bambuddyspool.app.ui.UiWidthClass
 import com.murzify.bambuddyspool.app.ui.WorkflowFeedbackSurface
 import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmationDialog
 import com.murzify.bambuddyspool.feature.printers.PrintersScreen
+import com.murzify.bambuddyspool.feature.settings.SettingsConnectionScreen
+import com.murzify.bambuddyspool.feature.setup.SetupScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
 import com.murzify.bambuddyspool.shared.resources.Res
 import com.murzify.bambuddyspool.shared.resources.home_connection_not_configured
@@ -117,15 +119,24 @@ private fun RootContent(
     contentPadding: androidx.compose.ui.unit.Dp,
     onProcessingComposed: () -> Unit
 ) = Surface(modifier.fillMaxSize()) {
+    val connectionSettings by root.connectionSettings.collectAsState()
     Column(
         modifier = Modifier.fillMaxSize().padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         when (state.destination) {
-            RootDestination.Home -> HomeScreen(state)
+            RootDestination.Home -> if (state.connectionState == HomeConnectionState.NotConfigured) {
+                SetupScreen(root.connectionForm)
+            } else {
+                HomeScreen(state)
+            }
             RootDestination.Spools -> SpoolsScreen(root.spoolsComponent, root::accept)
             RootDestination.Printers -> PrintersScreen(root.printersComponent, state.pendingManualSpoolId, root::accept)
-            RootDestination.Settings -> Text(stringResource(Res.string.placeholder_settings))
+            RootDestination.Settings -> SettingsConnectionScreen(
+                component = root.connectionForm,
+                configuredUrl = connectionSettings.baseUrl?.toString(),
+                hasSavedToken = false
+            )
         }
         state.transientWorkflow?.let { workflow ->
             WorkflowFeedbackSurface(workflow, onProcessingComposed)

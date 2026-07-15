@@ -2,6 +2,13 @@
 
 ## 2026-07-15
 
+- Completed `[MVP]-[001]` and recorded the owner-authorized MVP sequencing decision. The production root now renders
+  shared Setup on first launch and the same connection form in Settings, with observable non-secret settings and a
+  connection-aware empty-cache boundary.
+- Until `[SEC]-[001]` and `[SEC]-[002]` are implemented, Test/Save fail closed without a network request, token
+  retention, sync, or mutation enablement. Targeted host tests and an Android CLI emulator smoke passed; no private
+  configuration was read or contacted.
+
 - Completed `[CODE]-[018]` with a product-code polish review. Spools and Printers now collect their component
   `StateFlow` once per rendered screen and pass immutable state into their detail branch, removing redundant detail
   collectors without changing safe restoration or mutation boundaries.

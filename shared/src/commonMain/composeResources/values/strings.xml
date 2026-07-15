@@ -16,6 +16,7 @@
     <string name="connection_auth_rejected">Bambuddy rejected the API token.</string>
     <string name="connection_incompatible">Bambuddy returned an incompatible authentication response.</string>
     <string name="connection_tls_failed">Certificate verification failed.</string>
+    <string name="connection_security_policy_not_ready">Connection is not enabled yet. SEC-001 secure token storage and SEC-002 network policy are required before Bambuddy can be contacted.</string>
     <string name="connection_instance_warning_title">Change Bambuddy instance?</string>
     <string name="connection_instance_warning">Existing NFC tags contain only spool numbers. Those numbers may refer to different spools on the new Bambuddy instance. Cached data and your default printer will be cleared.</string>
     <string name="connection_http_warning_title">Use an unencrypted connection?</string>
