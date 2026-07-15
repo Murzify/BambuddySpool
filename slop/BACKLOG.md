@@ -305,6 +305,19 @@ Home/Spools/Printers summaries only after all required GET data is obtained; slo
 and every mutation remains hard-disabled with a typed reason. Deterministic tests cover both paths and no live
 instance data is committed.
 
+- [x] [MVP]-[005] Normalize Finite Over-Consumption in Read-Only Spool Snapshots
+Task Context
+An owner-authorized read-only diagnosis established that an otherwise valid inventory can report a finite,
+nonnegative `weight_used` greater than `label_weight`. Keep negative source weights and non-finite values as
+contract failures, but normalize finite over-consumption to `remainingGrams = 0` so the entire read-only snapshot
+remains available. Do not change mutation, security, URL, token, or diagnostics behavior, and do not repeat the
+private-instance request.
+Task DOD
+The DTO mapper clamps only finite nonnegative over-consumption; invalid negative/non-finite source values still
+produce typed incompatible-response failures. Focused mapping and full-snapshot tests prove the snapshot publishes
+with zero remaining grams, repository documentation records the correction without private data, and no live
+inventory is committed.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

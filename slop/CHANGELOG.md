@@ -2,6 +2,12 @@
 
 ## 2026-07-15
 
+- Completed `[MVP]-[005]`: a finite, nonnegative `weight_used` above `label_weight` now maps to zero remaining
+  grams rather than rejecting an otherwise valid read-only inventory snapshot. Negative and non-finite source
+  weights remain typed incompatible-response failures. The correction is limited to spool DTO normalization; it
+  does not alter mutation, security, URL, token, or diagnostics behavior, and no additional private request was
+  made.
+
 - Completed `[MVP]-[004]`: retained strict atomic rejection of unsupported physical slot topology while adding a
   separately named GET-only MVP fallback that can publish only printer and spool summaries. The degraded cache
   contains no slots or assignments, exposes a typed unsupported-topology state, and keeps every mutation/NFC/tag

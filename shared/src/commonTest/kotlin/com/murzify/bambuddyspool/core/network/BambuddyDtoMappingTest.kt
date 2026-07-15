@@ -117,6 +117,27 @@ class BambuddyDtoMappingTest {
     }
 
     @Test
+    fun finiteOverConsumptionIsClampedToEmptyInsteadOfRejectingTheSpool() {
+        val spool = assertSuccess<Spool>(parseSpoolResponse(spoolJson(weightUsed = "1000.5")))
+
+        assertEquals(0, spool.remainingGrams)
+    }
+
+    @Test
+    fun negativeOrNonFiniteSourceWeightsRemainIncompatible() {
+        listOf(
+            spoolJson(labelWeight = "-1"),
+            spoolJson(coreWeight = "-1"),
+            spoolJson(weightUsed = "-0.1")
+        ).forEach { body ->
+            val failure = assertIs<BambuddyMappingResult.Failure>(parseSpoolResponse(body))
+            assertEquals(IncompatibleApiReason.InvalidFieldValue, failure.error.reason)
+        }
+
+        assertIs<BambuddyMappingResult.Failure>(parseSpoolResponse(spoolJson(weightUsed = "NaN")))
+    }
+
+    @Test
     fun missingRequiredSpoolWeightFieldReturnsIncompatibleApiResponse() {
         val result = parseSpoolResponse(
             """
@@ -194,4 +215,21 @@ class BambuddyDtoMappingTest {
     private fun printerId(value: Long): PrinterId = assertNotNull(PrinterId.from(value))
 
     private fun spoolId(value: Long): SpoolId = assertNotNull(SpoolId.from(value))
+
+    private fun spoolJson(
+        labelWeight: String = "1000",
+        coreWeight: String = "250",
+        weightUsed: String = "100.0"
+    ): String =
+        """
+        {
+          "id": 3,
+          "material": "PLA",
+          "label_weight": $labelWeight,
+          "core_weight": $coreWeight,
+          "weight_used": $weightUsed,
+          "created_at": "2000-01-01T00:00:00Z",
+          "updated_at": "2000-01-01T00:00:00Z"
+        }
+        """.trimIndent()
 }

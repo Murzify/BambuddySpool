@@ -65,8 +65,10 @@ internal data class SpoolDto(
     )
 
     private fun remainingGrams(): Int? {
-        if (labelWeight < 0 || coreWeight < 0 || weightUsed < 0.0) invalidDomainField()
-        return (labelWeight - weightUsed).roundToInt().takeIf { it >= 0 } ?: invalidDomainField()
+        if (labelWeight < 0 || coreWeight < 0) invalidDomainField()
+        if (!weightUsed.isFinite() || weightUsed < 0.0) invalidDomainField()
+        if (weightUsed >= labelWeight) return 0
+        return (labelWeight - weightUsed).roundToInt()
     }
 }
 

@@ -195,6 +195,17 @@ class AtomicSnapshotSynchronizerTest {
         assertEquals(listOf(true), repository.includeArchivedRequests)
     }
 
+    @Test
+    fun fullSnapshotPublishesAnEmptySpool() = runTest {
+        val repository = FakeRepository(
+            spoolsResult = BambuddyNetworkResult.Success(listOf(spool(value = 1, remainingGrams = 0)))
+        )
+        val store = FakeSnapshotStore()
+
+        assertEquals(SnapshotSyncResult.Success, synchronizer(repository, store).sync(SnapshotSyncTrigger.Initial))
+        assertEquals(0, store.currentSnapshot?.spools?.single()?.remainingGrams)
+    }
+
     private fun TestScope.synchronizer(
         repository: FakeRepository,
         store: FakeSnapshotStore
@@ -322,13 +333,13 @@ private fun status(
     virtualTrays = listOf(virtualTray)
 )
 
-private fun spool(value: Long): Spool = Spool(
+private fun spool(value: Long, remainingGrams: Int = 100): Spool = Spool(
     id = spoolId(value),
     name = "Spool $value",
     manufacturer = null,
     material = "PLA",
     colorName = null,
-    remainingGrams = 100
+    remainingGrams = remainingGrams
 )
 
 private fun assignment(spoolId: SpoolId = spoolId(1), slot: SlotKey = slotKey()): Assignment = Assignment(
