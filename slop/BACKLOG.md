@@ -398,6 +398,19 @@ framework Tag, token, or tag authorization in saved state. Deterministic routing
 confirmation, fresh validation, and failure paths; implementation makes no private instance request or physical
 NFC write.
 
+- [x] [MVP]-[012] Retain Foreground NFC Ownership Through Physical Tag Mutation
+Task Context
+Keep Android foreground reader mode enabled after an explicit tag-mutation confirmation until the existing
+fingerprint-bound NDEF write and independent read-back have returned. The bridge must reject callbacks and prevent
+tag replacement while physical mutation is in progress, then disable reader mode exactly once on every terminal
+return, including exceptions. Cancellation before mutation must still consume the live tag and disable reader mode;
+ordinary NFC intent routing must remain unchanged outside an active Link/Retry workflow.
+Task DOD
+The Android bridge cannot disable foreground reader mode before the physical writer returns, cannot accept a
+replacement tag during mutation, and disables it once after success or failure. Pure lifecycle coverage proves
+the reader-enable/disable and cancellation transitions without Android framework tags. No private Bambuddy request,
+POST, physical NFC write, tag lock, or secret logging occurs.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

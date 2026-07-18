@@ -288,46 +288,135 @@ internal object AndroidNdefMessageCodec {
 internal class AndroidLiveTagMutationBridge(
     private val mutator: AndroidNdefTagMutator = AndroidNdefTagMutator()
 ) : LiveTagMutationBridge {
-    @Volatile private var armed = false
-    @Volatile private var liveTag: Tag? = null
+    private val lifecycle = LiveTagMutationReaderLifecycle()
+    private var liveTag: Tag? = null
     @Volatile var onRead: ((TagMutationRead) -> Unit)? = null
     /** Activity uses this only to toggle Android foreground reader mode for an active link/retry flow. */
     @Volatile var onArmedChanged: ((Boolean) -> Unit)? = null
-    val isArmed: Boolean get() = armed
+    val isArmed: Boolean get() = synchronized(this) { lifecycle.isReaderEnabled }
 
     override fun beginRead() {
-        liveTag = null
-        armed = true
-        onArmedChanged?.invoke(true)
+        val enableReader = synchronized(this) {
+            if (!lifecycle.beginRead()) {
+                false
+            } else {
+                liveTag = null
+                true
+            }
+        }
+        if (enableReader) onArmedChanged?.invoke(true)
     }
 
     override fun cancelRead() {
-        armed = false
-        liveTag = null
-        onArmedChanged?.invoke(false)
+        val disableReader = synchronized(this) {
+            if (!lifecycle.cancelRead()) {
+                false
+            } else {
+                liveTag = null
+                true
+            }
+        }
+        if (disableReader) onArmedChanged?.invoke(false)
     }
 
     /** Reads only while the shared workflow is awaiting a physical tag; this method never writes. */
     fun accept(tag: Tag) {
-        if (!armed) return
-        val fingerprint = tagFingerprint(tag) ?: return
-        val classification = tag.readClassification()
-        liveTag = tag
-        onRead?.invoke(TagMutationRead(fingerprint, classification))
+        if (!synchronized(this) { lifecycle.acceptTag() }) return
+        tagFingerprint(tag)?.let { fingerprint ->
+            val classification = tag.readClassification()
+            val accepted = synchronized(this) {
+                lifecycle.acceptTag().also { if (it) liveTag = tag }
+            }
+            if (accepted) {
+                onRead?.invoke(TagMutationRead(fingerprint, classification))
+            }
+        }
     }
 
     override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
-        val tag = liveTag ?: return TagMutationNotApplied(TagMutationNotAppliedReason.DifferentTagDetected)
-        armed = false
-        liveTag = null
-        onArmedChanged?.invoke(false)
-        return when (operation) {
-            is TagMutationOperation.Link -> mutator.write(tag, expectedFingerprint, operation.canonicalUri, operation.spoolId)
-            TagMutationOperation.Clear -> mutator.clear(tag, expectedFingerprint)
+        val tag = synchronized(this) {
+            val candidate = liveTag ?: return@synchronized null
+            candidate.takeIf { lifecycle.beginMutation() }
+        } ?: return TagMutationNotApplied(TagMutationNotAppliedReason.DifferentTagDetected)
+        return try {
+            when (operation) {
+                is TagMutationOperation.Link -> mutator.write(
+                    tag,
+                    expectedFingerprint,
+                    operation.canonicalUri,
+                    operation.spoolId
+                )
+                TagMutationOperation.Clear -> mutator.clear(tag, expectedFingerprint)
+            }
+        } finally {
+            val disableReader = synchronized(this) {
+                liveTag = null
+                lifecycle.finishMutation()
+            }
+            if (disableReader) onArmedChanged?.invoke(false)
         }
     }
 }
 
+/**
+ * Framework-free lifecycle for the Android foreground reader during a live tag mutation.
+ *
+ * A physical write must retain foreground reader ownership through independent read-back; otherwise the Android
+ * system may provision the still-held blank tag. Only [AwaitingTag] accepts reader callbacks. In particular,
+ * cancellation and a second begin request cannot tear down reader mode during [Mutating].
+ */
+internal class LiveTagMutationReaderLifecycle {
+    private var phase = Phase.Inactive
+
+    val isReaderEnabled: Boolean
+        get() = phase != Phase.Inactive
+
+    /** Returns true only when foreground reader mode must be enabled. */
+    fun beginRead(): Boolean = when (phase) {
+        Phase.Inactive -> {
+            phase = Phase.AwaitingTag
+            true
+        }
+        Phase.AwaitingTag, Phase.Mutating -> false
+    }
+
+    /** Returns true only when cancellation must disable foreground reader mode. */
+    fun cancelRead(): Boolean = when (phase) {
+        Phase.AwaitingTag -> {
+            phase = Phase.Inactive
+            true
+        }
+        Phase.Inactive, Phase.Mutating -> false
+    }
+
+    fun acceptTag(): Boolean = phase == Phase.AwaitingTag
+
+    /** Advances to physical I/O without disabling foreground reader mode. */
+    fun beginMutation(): Boolean = when (phase) {
+        Phase.AwaitingTag -> {
+            phase = Phase.Mutating
+            true
+        }
+        Phase.Inactive, Phase.Mutating -> false
+    }
+
+    /** Returns true exactly once when physical I/O, including read-back, has completed. */
+    fun finishMutation(): Boolean = when (phase) {
+        Phase.Mutating -> {
+            phase = Phase.Inactive
+            true
+        }
+        Phase.Inactive, Phase.AwaitingTag -> false
+    }
+
+    private enum class Phase {
+        Inactive,
+        AwaitingTag,
+        Mutating
+    }
+}
+
+@Suppress("ReturnCount")
 private fun Tag.readClassification(): NfcReadClassification {
     val ndef = Ndef.get(this)
     if (AndroidNdefReadCapability.select(ndef != null, NdefFormatable.get(this) != null) ==

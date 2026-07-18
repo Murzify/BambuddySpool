@@ -2,6 +2,12 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[012]`: Android foreground reader mode now remains active from a live-tag confirmation through
+  the fingerprint-bound physical write and independent read-back. The framework-free lifecycle rejects callback,
+  cancel, and new-read transitions during physical I/O, then clears the process-local tag and disables reader mode
+  exactly once after the writer returns, including failures. Focused Android unit tests, Detekt, and debug assembly
+  passed; no Bambuddy request, POST, physical NFC write, or tag lock occurred.
+
 - Completed `[MVP]-[010]`: declared the Android normal `android.permission.NFC` permission required by foreground
   reader mode, while retaining the optional NFC hardware feature for installation on non-NFC devices. The focused
   Android manifest assertion passed on the supported physical device, and the built debug APK packages the
