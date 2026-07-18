@@ -94,6 +94,7 @@
     <string name="tag_confirm_link">Write this spool link to the tag?</string>
     <string name="tag_confirm_overwrite">This tag already contains data. Replace it with this spool link?</string>
     <string name="tag_confirm_clear">Clear this NFC tag?</string>
+    <string name="tag_keep_held">Keep the tag held against your device until writing and independent read-back finish.</string>
     <string name="tag_linked">The NFC tag is linked.</string>
     <string name="tag_failed">The NFC tag operation could not be verified.</string>
     <string name="tag_retry">Read tag again</string>

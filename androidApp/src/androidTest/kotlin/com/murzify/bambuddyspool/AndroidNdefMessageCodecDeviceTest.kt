@@ -13,6 +13,22 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AndroidNdefMessageCodecDeviceTest {
     @Test
+    fun readCapabilityPassesOnlyBlankFormattableTagsToTheExplicitLinkPath() {
+        assertEquals(
+            AndroidNdefReadCapability.Ndef,
+            AndroidNdefReadCapability.select(hasNdef = true, hasNdefFormatable = true)
+        )
+        assertEquals(
+            AndroidNdefReadCapability.FormattableEmpty,
+            AndroidNdefReadCapability.select(hasNdef = false, hasNdefFormatable = true)
+        )
+        assertEquals(
+            AndroidNdefReadCapability.Unsupported,
+            AndroidNdefReadCapability.select(hasNdef = false, hasNdefFormatable = false)
+        )
+    }
+
+    @Test
     fun generatedMessageContainsExactlyOneCanonicalUriRecord() {
         val message = AndroidNdefMessageCodec.singleUriMessage("bambuddy-spool://spool/42")
 

@@ -15,6 +15,7 @@ import com.murzify.bambuddyspool.shared.resources.tag_confirm_link
 import com.murzify.bambuddyspool.shared.resources.tag_confirm_overwrite
 import com.murzify.bambuddyspool.shared.resources.tag_failed
 import com.murzify.bambuddyspool.shared.resources.tag_hold_nearby
+import com.murzify.bambuddyspool.shared.resources.tag_keep_held
 import com.murzify.bambuddyspool.shared.resources.tag_linked
 import com.murzify.bambuddyspool.shared.resources.tag_retry
 import org.jetbrains.compose.resources.stringResource
@@ -66,7 +67,12 @@ fun TagMutationSurface(
 @Composable
 private fun Confirmation(text: String, onConfirm: () -> Unit, onCancel: () -> Unit) = AlertDialog(
     onDismissRequest = onCancel,
-    title = { Text(text) },
+    title = {
+        Column {
+            Text(text)
+            Text(stringResource(Res.string.tag_keep_held))
+        }
+    },
     confirmButton = { AccessibleButton(stringResource(Res.string.tag_confirm_link), onConfirm) },
     dismissButton = { AccessibleButton(stringResource(Res.string.tag_cancel), onCancel) }
 )

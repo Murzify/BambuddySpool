@@ -329,7 +329,13 @@ internal class AndroidLiveTagMutationBridge(
 }
 
 private fun Tag.readClassification(): NfcReadClassification {
-    val ndef = Ndef.get(this) ?: return NfcReadClassification.UnsupportedTag(UnsupportedTagReason.NdefUnavailable)
+    val ndef = Ndef.get(this)
+    if (AndroidNdefReadCapability.select(ndef != null, NdefFormatable.get(this) != null) ==
+        AndroidNdefReadCapability.FormattableEmpty
+    ) {
+        return NfcReadClassification.Empty
+    }
+    ndef ?: return NfcReadClassification.UnsupportedTag(UnsupportedTagReason.NdefUnavailable)
     return try {
         ndef.connect()
         val message = ndef.cachedNdefMessage ?: return NfcReadClassifier.classify(CommonNdefMessage.Empty)
@@ -349,6 +355,24 @@ private fun Tag.readClassification(): NfcReadClassification {
             ndef.close()
         } catch (_: IOException) {
             // A close failure cannot turn a completed read into authorization.
+        }
+    }
+}
+
+/**
+ * Decides only whether Android can inspect an NDEF payload or format a blank tag. It deliberately does not turn
+ * non-NDEF technologies into writable tags: only [FormattableEmpty] reaches the explicit link confirmation.
+ */
+internal enum class AndroidNdefReadCapability {
+    Ndef,
+    FormattableEmpty,
+    Unsupported;
+
+    companion object {
+        fun select(hasNdef: Boolean, hasNdefFormatable: Boolean): AndroidNdefReadCapability = when {
+            hasNdef -> Ndef
+            hasNdefFormatable -> FormattableEmpty
+            else -> Unsupported
         }
     }
 }

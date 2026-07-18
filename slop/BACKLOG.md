@@ -256,6 +256,20 @@ Format, Detekt, Lint, architecture checks, and tests pass; main thread and UI me
 
 ## MVP Sequencing (Owner-Authorized)
 
+- [x] [MVP]-[011] Classify Blank Formattable NFC Tags for Linking
+Task Context
+Foreground linking must not reject a physically blank NDEF-formatable tag before the existing Android writer can
+format it. Classify a tag without `Ndef` but with `NdefFormatable` as empty, retaining explicit confirmation,
+fingerprint continuity, fresh GET validation, independent read-back, and fail-closed unsupported-tag handling.
+Do not skip Android NDEF discovery checks while the link reader needs to inspect NDEF content. Explain that the tag
+must remain held through write and read-back verification. No private Bambuddy request, POST, or physical NFC write
+is part of implementation or automated testing.
+Task DOD
+The Android bridge can pass a blank formattable tag to the existing explicit link confirmation and writer; an NDEF
+tag is still content-classified and a tag with neither supported technology remains unsupported. Foreground reader
+mode does not request `FLAG_READER_SKIP_NDEF_CHECK`. Targeted Android policy/device coverage, host tests, debug
+assembly, and a whitespace diff check pass.
+
 - [x] [MVP]-[010] Declare Android NFC Permission for Foreground Reader Mode
 Task Context
 Declare the Android normal NFC permission required by `NfcAdapter.enableReaderMode`. Keep NFC hardware optional so
