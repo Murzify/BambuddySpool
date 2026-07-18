@@ -52,6 +52,10 @@ import com.murzify.bambuddyspool.core.sync.SnapshotSyncTrigger
 import com.murzify.bambuddyspool.core.sync.SyncClock
 import com.murzify.bambuddyspool.core.topology.KnownSlotTopologyResolver
 import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
+import com.murzify.bambuddyspool.feature.tagmutation.FreshTagMutationValidator
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationState
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationWorkflowController
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -81,6 +85,7 @@ internal class MvpConnectionRuntime(
     private val snapshotCache = MvpSnapshotCache()
     val cache: CacheProjectionRepository = snapshotCache
     private val assignmentMutex = Mutex()
+    private val tagMutationMutex = Mutex()
     val form = ConnectionFormComponent(
         service = ConnectionReplacementService(
             settingsStore = this,
@@ -119,6 +124,26 @@ internal class MvpConnectionRuntime(
      */
     suspend fun executeConfirmedAssignment(intent: AssignmentIntent): AssignmentResult = withAssignmentOrchestrator {
         it.execute(intent)
+    }
+
+    /**
+     * Performs the final GET-only validation in a short-lived policy-bound session immediately before the platform
+     * writer receives an already confirmed, fingerprint-bound operation. This feature never creates a Bambuddy POST.
+     */
+    suspend fun confirmTagMutation(state: TagMutationState, writer: TagMutationWriter): TagMutationState {
+        val settings = read()
+        val baseUrl = settings.baseUrl ?: return state
+        val token = tokenStore.currentTokenForReplacement() ?: return state
+        val session = repositorySessions.create(baseUrl, token, settings)
+        return try {
+            TagMutationWorkflowController(
+                validator = FreshTagMutationValidator(session.repository),
+                writer = writer,
+                mutationMutex = tagMutationMutex
+            ).confirm(state)
+        } finally {
+            session.close()
+        }
     }
 
     private suspend fun <T> withAssignmentOrchestrator(block: suspend (AssignmentOrchestrator) -> T): T {

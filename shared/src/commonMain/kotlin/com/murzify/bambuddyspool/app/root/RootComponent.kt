@@ -33,6 +33,11 @@ import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmati
 import com.murzify.bambuddyspool.feature.assignment.toCombinedConfirmation
 import com.murzify.bambuddyspool.feature.printers.PrintersComponent
 import com.murzify.bambuddyspool.feature.spools.SpoolsComponent
+import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationRead
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationState
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationWorkflow
+import com.murzify.bambuddyspool.feature.tagmutation.UnavailableLiveTagMutationBridge
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
@@ -84,8 +89,12 @@ data class RootState(
     /** Opaque coordinator identity for the current process-local NFC workflow; it is never saved. */
     val activeNfcSessionId: NfcSessionId? = null,
     val pendingManualSpoolId: SpoolId? = null,
+    /** Selected only for the live in-memory tag mutation; it is never restored. */
+    val pendingTagMutationSpoolId: SpoolId? = null,
     val assignmentIntent: AssignmentIntent? = null,
-    val assignmentConfirmation: CombinedAssignmentConfirmation? = null
+    val assignmentConfirmation: CombinedAssignmentConfirmation? = null,
+    /** Live NFC state is intentionally process-local and excluded from restoration. */
+    val tagMutation: TagMutationState = TagMutationState.Idle
 )
 
 /** Inputs accepted by the shared root component. */
@@ -113,6 +122,10 @@ sealed interface RootIntent {
     data object ConfirmAssignment : RootIntent
     data object CancelAssignmentConfirmation : RootIntent
     data class StartTagLink(val spoolId: Long?) : RootIntent
+    data class TagMutationRead(val read: com.murzify.bambuddyspool.feature.tagmutation.TagMutationRead) : RootIntent
+    data object ConfirmTagMutation : RootIntent
+    data object RetryTagMutation : RootIntent
+    data object CancelTagMutation : RootIntent
 
     data class ShowTransient(val workflow: RootTransientWorkflow) : RootIntent
     data object DismissTransient : RootIntent
@@ -155,6 +168,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                 state.copy(
                     destination = RootDestination.Printers,
                     pendingManualSpoolId = requireNotNull(SpoolId.from(intent.spoolId)),
+                    pendingTagMutationSpoolId = null,
                     transientWorkflow = null,
                     pendingNfcObservation = null,
                     activeNfcSessionId = null,
@@ -182,6 +196,7 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                     pendingNfcObservation = intent.observation,
                     activeNfcSessionId = intent.sessionId,
                     pendingManualSpoolId = null,
+                    pendingTagMutationSpoolId = null,
                     assignmentIntent = null,
                     assignmentConfirmation = null
                 )
@@ -213,8 +228,29 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
             state.copy(
                 transientWorkflow = RootTransientWorkflow.TagMutation,
                 pendingNfcObservation = null,
-                activeNfcSessionId = null
+                activeNfcSessionId = null,
+                pendingManualSpoolId = null,
+                pendingTagMutationSpoolId = null,
+                tagMutation = TagMutationState.Idle
             )
+        )
+
+        is RootIntent.TagMutationRead -> {
+            val spoolId = state.pendingTagMutationSpoolId ?: return Reduction(state)
+            val next = when (val current = state.tagMutation) {
+                is TagMutationState.AwaitingReadBeforeRetry -> TagMutationWorkflow.retryRead(current, intent.read)
+                else -> TagMutationWorkflow.selectSpool(intent.read, spoolId)
+            }
+            Reduction(state.copy(tagMutation = next))
+        }
+
+        RootIntent.ConfirmTagMutation -> Reduction(state)
+        RootIntent.RetryTagMutation -> Reduction(
+            state.copy(tagMutation = (state.tagMutation as? TagMutationState.Failed)?.let(TagMutationWorkflow::beginRetry)
+                ?: state.tagMutation)
+        )
+        RootIntent.CancelTagMutation -> Reduction(
+            state.copy(transientWorkflow = null, pendingTagMutationSpoolId = null, tagMutation = TagMutationState.Idle)
         )
 
         is RootIntent.ShowTransient -> Reduction(state.copy(transientWorkflow = intent.workflow))
@@ -302,7 +338,8 @@ class RootComponent internal constructor(
     spoolProjectionRepository: CacheProjectionRepository,
     private val connectionRuntime: MvpConnectionRuntime = MvpConnectionRuntime(
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    )
+    ),
+    private val liveTagMutationBridge: LiveTagMutationBridge = UnavailableLiveTagMutationBridge
 ) : ComponentContext by componentContext,
     UdfComponent<RootState, RootIntent> {
     /** Shared production Setup/Settings controller; it never exposes token text or saved authorization state. */
@@ -377,6 +414,12 @@ class RootComponent internal constructor(
             is RootIntent.StartAssignment,
             is RootIntent.CreateManualAssignment -> startAssignmentPreflight(mutableState.value.assignmentIntent)
             RootIntent.ConfirmAssignment -> executeConfirmedAssignment(mutableState.value.assignmentIntent)
+            is RootIntent.StartTagLink -> startTagLink(intent.spoolId)
+            RootIntent.ConfirmTagMutation -> executeConfirmedTagMutation(mutableState.value.tagMutation)
+            RootIntent.RetryTagMutation -> if (mutableState.value.tagMutation is TagMutationState.AwaitingReadBeforeRetry) {
+                liveTagMutationBridge.beginRead()
+            }
+            RootIntent.CancelTagMutation -> liveTagMutationBridge.cancelRead()
             else -> Unit
         }
     }
@@ -412,6 +455,30 @@ class RootComponent internal constructor(
                 is AssignmentResult.Failure,
                 null -> applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Error))
             }
+        }
+    }
+
+    private fun startTagLink(spoolId: Long?) {
+        val id = spoolId?.let(SpoolId::from) ?: run {
+            applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Error))
+            return
+        }
+        mutableState.value = mutableState.value.copy(pendingTagMutationSpoolId = id, tagMutation = TagMutationState.Idle)
+        liveTagMutationBridge.beginRead()
+    }
+
+    /** Called only by the platform's live-reader adapter, after it has retained no Android object in root state. */
+    fun onTagMutationRead(read: TagMutationRead) {
+        if (mutableState.value.transientWorkflow != RootTransientWorkflow.TagMutation) return
+        accept(RootIntent.TagMutationRead(read))
+    }
+
+    private fun executeConfirmedTagMutation(state: TagMutationState) {
+        scope.launch {
+            val result = runCatching { connectionRuntime.confirmTagMutation(state, liveTagMutationBridge) }
+                .getOrElse { TagMutationState.Failed(com.murzify.bambuddyspool.feature.tagmutation.TagMutationFailure.FreshValidationFailed) }
+            if (mutableState.value.tagMutation != state) return@launch
+            mutableState.value = mutableState.value.copy(tagMutation = result)
         }
     }
 

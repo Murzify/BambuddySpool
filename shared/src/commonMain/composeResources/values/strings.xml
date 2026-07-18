@@ -90,4 +90,12 @@
     <string name="assignment_cancel">Cancel</string>
     <string name="assignment_location">%1$s — %2$s</string>
     <string name="assignment_unnamed_printer">Printer %1$d</string>
+    <string name="tag_hold_nearby">Hold the NFC tag near your device to read it.</string>
+    <string name="tag_confirm_link">Write this spool link to the tag?</string>
+    <string name="tag_confirm_overwrite">This tag already contains data. Replace it with this spool link?</string>
+    <string name="tag_confirm_clear">Clear this NFC tag?</string>
+    <string name="tag_linked">The NFC tag is linked.</string>
+    <string name="tag_failed">The NFC tag operation could not be verified.</string>
+    <string name="tag_retry">Read tag again</string>
+    <string name="tag_cancel">Cancel</string>
 </resources>

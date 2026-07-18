@@ -22,6 +22,11 @@ import com.murzify.bambuddyspool.core.nfc.CommonNdefRecord
 import com.murzify.bambuddyspool.core.nfc.NfcPayloadParseResult
 import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
 import com.murzify.bambuddyspool.core.nfc.NfcReadClassifier
+import com.murzify.bambuddyspool.core.nfc.NfcReadFailureReason
+import com.murzify.bambuddyspool.core.nfc.UnsupportedTagReason
+import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationOperation
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationRead
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -278,3 +283,75 @@ internal object AndroidNdefMessageCodec {
     private fun NdefRecord.isWellKnownUri(): Boolean =
         tnf == NdefRecord.TNF_WELL_KNOWN && type.contentEquals(NdefRecord.RTD_URI)
 }
+
+/** Android-owned process-local hand-off for the shared link workflow. */
+internal class AndroidLiveTagMutationBridge(
+    private val mutator: AndroidNdefTagMutator = AndroidNdefTagMutator()
+) : LiveTagMutationBridge {
+    @Volatile private var armed = false
+    @Volatile private var liveTag: Tag? = null
+    @Volatile var onRead: ((TagMutationRead) -> Unit)? = null
+    /** Activity uses this only to toggle Android foreground reader mode for an active link/retry flow. */
+    @Volatile var onArmedChanged: ((Boolean) -> Unit)? = null
+    val isArmed: Boolean get() = armed
+
+    override fun beginRead() {
+        liveTag = null
+        armed = true
+        onArmedChanged?.invoke(true)
+    }
+
+    override fun cancelRead() {
+        armed = false
+        liveTag = null
+        onArmedChanged?.invoke(false)
+    }
+
+    /** Reads only while the shared workflow is awaiting a physical tag; this method never writes. */
+    fun accept(tag: Tag) {
+        if (!armed) return
+        val fingerprint = tagFingerprint(tag) ?: return
+        val classification = tag.readClassification()
+        liveTag = tag
+        onRead?.invoke(TagMutationRead(fingerprint, classification))
+    }
+
+    override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
+        val tag = liveTag ?: return TagMutationNotApplied(TagMutationNotAppliedReason.DifferentTagDetected)
+        armed = false
+        liveTag = null
+        onArmedChanged?.invoke(false)
+        return when (operation) {
+            is TagMutationOperation.Link -> mutator.write(tag, expectedFingerprint, operation.canonicalUri, operation.spoolId)
+            TagMutationOperation.Clear -> mutator.clear(tag, expectedFingerprint)
+        }
+    }
+}
+
+private fun Tag.readClassification(): NfcReadClassification {
+    val ndef = Ndef.get(this) ?: return NfcReadClassification.UnsupportedTag(UnsupportedTagReason.NdefUnavailable)
+    return try {
+        ndef.connect()
+        val message = ndef.cachedNdefMessage ?: return NfcReadClassifier.classify(CommonNdefMessage.Empty)
+        NfcReadClassifier.classify(
+            CommonNdefMessage(message.records.map { record ->
+                record.takeIf { it.tnf == NdefRecord.TNF_WELL_KNOWN && it.type.contentEquals(NdefRecord.RTD_URI) }
+                    ?.toUri()?.toString()?.let(CommonNdefRecord::Uri)
+                    ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
+            })
+        )
+    } catch (_: TagLostException) {
+        NfcReadClassification.ReadFailure(NfcReadFailureReason.TagRemoved)
+    } catch (_: IOException) {
+        NfcReadClassification.ReadFailure(NfcReadFailureReason.PlatformError)
+    } finally {
+        try {
+            ndef.close()
+        } catch (_: IOException) {
+            // A close failure cannot turn a completed read into authorization.
+        }
+    }
+}
+
+private fun tagFingerprint(tag: Tag): String? = tag.id.takeIf { it.isNotEmpty() }
+    ?.joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }

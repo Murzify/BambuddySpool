@@ -9,6 +9,8 @@ import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import com.murzify.bambuddyspool.core.security.SecureTokenStore
+import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
+import com.murzify.bambuddyspool.feature.tagmutation.UnavailableLiveTagMutationBridge
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
@@ -26,7 +28,8 @@ internal interface ComponentGraph {
             @Provides componentContext: ComponentContext,
             @Provides nfcService: NfcService,
             @Provides spoolProjectionRepository: CacheProjectionRepository,
-            @Provides connectionRuntime: MvpConnectionRuntime
+            @Provides connectionRuntime: MvpConnectionRuntime,
+            @Provides liveTagMutationBridge: LiveTagMutationBridge
         ): ComponentGraph
     }
 }
@@ -39,7 +42,8 @@ fun createRootGraph(
     componentContext: ComponentContext,
     nfcService: NfcService,
     spoolProjectionRepository: CacheProjectionRepository = EmptyCacheProjectionRepository,
-    secureTokenStore: SecureTokenStore? = null
+    secureTokenStore: SecureTokenStore? = null,
+    liveTagMutationBridge: LiveTagMutationBridge = UnavailableLiveTagMutationBridge
 ): RootGraph {
     val connectionRuntime = MvpConnectionRuntime(
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -54,7 +58,8 @@ fun createRootGraph(
         } else {
             spoolProjectionRepository
         },
-        connectionRuntime = connectionRuntime
+        connectionRuntime = connectionRuntime,
+        liveTagMutationBridge = liveTagMutationBridge
     )
     return RootGraph(rootComponent = componentGraph.rootComponent)
 }

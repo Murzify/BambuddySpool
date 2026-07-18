@@ -10,11 +10,68 @@ import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
+import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
+import com.murzify.bambuddyspool.core.nfc.UnsupportedTagReason
+import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationOperation
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationRead
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationState
+import com.murzify.bambuddyspool.core.domain.TagMutationOutcome
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class RootComponentTest {
+    @Test
+    fun tagLinkRequiresALiveReadAndLeavesNoAuthorizationForRecreation() {
+        val stateKeeper = StateKeeperDispatcher()
+        val bridge = RecordingTagBridge()
+        val root = component(stateKeeper, bridge)
+
+        root.accept(RootIntent.StartTagLink(4))
+
+        assertEquals(RootTransientWorkflow.TagMutation, root.state.value.transientWorkflow)
+        assertEquals(requireNotNull(SpoolId.from(4)), root.state.value.pendingTagMutationSpoolId)
+        assertEquals(1, bridge.beginReads)
+        root.onTagMutationRead(TagMutationRead("tag-a", NfcReadClassification.Empty))
+        assertEquals(TagMutationState.LinkReady::class, root.state.value.tagMutation::class)
+
+        root.onTagMutationRead(
+            TagMutationRead("tag-b", NfcReadClassification.UnsupportedTag(UnsupportedTagReason.NdefUnavailable))
+        )
+        assertEquals(TagMutationState.Failed::class, root.state.value.tagMutation::class)
+        assertEquals(0, bridge.writes)
+
+        val restored = component(StateKeeperDispatcher(stateKeeper.save()), RecordingTagBridge())
+        assertNull(restored.state.value.pendingTagMutationSpoolId)
+        assertEquals(TagMutationState.Idle, restored.state.value.tagMutation)
+    }
+
+    @Test
+    fun tagRetryRequiresTheSameFingerprintBeforeItCanReturnToConfirmation() {
+        val spool = requireNotNull(SpoolId.from(4))
+        val failed = TagMutationState.Failed(
+            reason = TagMutationFailure.PhysicalWriteUnverified,
+            retry = TagMutationOperation.Link(spool, "bambuddy-spool://spool/4"),
+            fingerprint = "tag-a"
+        )
+        val awaiting = RootReducer.reduce(
+            RootState(pendingTagMutationSpoolId = spool, tagMutation = failed),
+            RootIntent.RetryTagMutation
+        ).state
+        assertEquals(TagMutationState.AwaitingReadBeforeRetry::class, awaiting.tagMutation::class)
+
+        val wrong = RootReducer.reduce(
+            awaiting,
+            RootIntent.TagMutationRead(TagMutationRead("tag-b", NfcReadClassification.Empty))
+        ).state
+        assertEquals(TagMutationState.Failed::class, wrong.tagMutation::class)
+        assertEquals(
+            TagMutationFailure.DifferentTagDetected,
+            (wrong.tagMutation as TagMutationState.Failed).reason
+        )
+    }
     @Test
     fun independentDestinationHistoriesSurviveSwitchingAndRecreationWithoutTransientWorkflow() {
         val firstStateKeeper = StateKeeperDispatcher()
@@ -132,18 +189,33 @@ class RootComponentTest {
         assertNull(restored.state.value.activeNfcSessionId)
     }
 
-    private fun component(stateKeeper: StateKeeperDispatcher): RootComponent = RootComponent(
+    private fun component(
+        stateKeeper: StateKeeperDispatcher,
+        bridge: LiveTagMutationBridge = RecordingTagBridge()
+    ): RootComponent = RootComponent(
         componentContext = DefaultComponentContext(activeLifecycle(), stateKeeper = stateKeeper),
         nfcService = object : NfcService {
             override val isAvailable = true
             override suspend fun read(): NfcObservation = error("Not used by root navigation tests")
         },
-        spoolProjectionRepository = EmptyCacheProjectionRepository
+        spoolProjectionRepository = EmptyCacheProjectionRepository,
+        liveTagMutationBridge = bridge
     )
 
     private fun activeLifecycle(): LifecycleRegistry = LifecycleRegistry().apply {
         onCreate()
         onStart()
         onResume()
+    }
+}
+
+private class RecordingTagBridge : LiveTagMutationBridge {
+    var beginReads = 0
+    var writes = 0
+    override fun beginRead() { beginReads++ }
+    override fun cancelRead() = Unit
+    override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
+        writes++
+        error("No test should authorize a physical write before confirmation.")
     }
 }

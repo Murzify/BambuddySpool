@@ -28,6 +28,27 @@ interface TagMutationWriter {
     suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome
 }
 
+/**
+ * Process-local platform bridge for a just-read physical tag.
+ *
+ * It deliberately exposes no framework object to common code and holds no authorization. The caller must still
+ * provide the matching [TagMutationRead] state to [TagMutationWorkflowController.confirm].
+ */
+interface LiveTagMutationBridge : TagMutationWriter {
+    fun beginRead()
+    fun cancelRead()
+}
+
+/** Default for shells without NFC writing. It is a terminal outcome rather than a permissive fake. */
+object UnavailableLiveTagMutationBridge : LiveTagMutationBridge {
+    override fun beginRead() = Unit
+    override fun cancelRead() = Unit
+    override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome =
+        com.murzify.bambuddyspool.core.domain.TagMutationNotApplied(
+            com.murzify.bambuddyspool.core.domain.TagMutationNotAppliedReason.UnsupportedTag
+        )
+}
+
 sealed interface TagMutationState {
     data object Idle : TagMutationState
     data class LinkReady(val read: TagMutationRead, val spoolId: SpoolId) : TagMutationState
@@ -99,6 +120,11 @@ object TagMutationWorkflow {
             fingerprint = fingerprint
         )
     }
+
+    /** A retry always requires a fresh read of the exact tag that reached the uncertain write boundary. */
+    fun beginRetry(state: TagMutationState.Failed): TagMutationState = state.retry?.let { operation ->
+        TagMutationState.AwaitingReadBeforeRetry(operation, requireNotNull(state.fingerprint))
+    } ?: state
 }
 
 /** Fresh online validation boundary. A cached projection is intentionally never accepted for a tag mutation. */
@@ -168,9 +194,7 @@ class TagMutationWorkflowController(
         }
     }
 
-    fun beginRetry(state: TagMutationState.Failed): TagMutationState = state.retry?.let { operation ->
-        TagMutationState.AwaitingReadBeforeRetry(operation, requireNotNull(state.fingerprint))
-    } ?: state
+    fun beginRetry(state: TagMutationState.Failed): TagMutationState = TagMutationWorkflow.beginRetry(state)
 
     private fun operation(spoolId: SpoolId): TagMutationOperation.Link = TagMutationOperation.Link(
         spoolId = spoolId,

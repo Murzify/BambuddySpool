@@ -40,6 +40,7 @@ import com.murzify.bambuddyspool.feature.printers.PrintersScreen
 import com.murzify.bambuddyspool.feature.settings.SettingsConnectionScreen
 import com.murzify.bambuddyspool.feature.setup.SetupScreen
 import com.murzify.bambuddyspool.feature.spools.SpoolsScreen
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationSurface
 import com.murzify.bambuddyspool.shared.resources.Res
 import com.murzify.bambuddyspool.shared.resources.home_connection_not_configured
 import com.murzify.bambuddyspool.shared.resources.home_connection_offline
@@ -146,6 +147,14 @@ private fun RootContent(
                 confirmation = confirmation,
                 onConfirm = { root.accept(RootIntent.ConfirmAssignment) },
                 onCancel = { root.accept(RootIntent.CancelAssignmentConfirmation) }
+            )
+        }
+        if (state.transientWorkflow == com.murzify.bambuddyspool.app.root.RootTransientWorkflow.TagMutation) {
+            TagMutationSurface(
+                state = state.tagMutation,
+                onConfirm = { root.accept(RootIntent.ConfirmTagMutation) },
+                onCancel = { root.accept(RootIntent.CancelTagMutation) },
+                onRetry = { root.accept(RootIntent.RetryTagMutation) }
             )
         }
     }

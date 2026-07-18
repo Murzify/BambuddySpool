@@ -2,6 +2,12 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[008]`: bound the production Link NFC tag route to a process-local Android foreground reader,
+  the existing shared link/overwrite policy, an explicit confirmation, a short-lived policy-bound GET validation,
+  and the fingerprint-bound Android NDEF write plus independent reread primitive. Framework tags, credentials, and
+  authorization remain outside saved state; no Bambuddy mutation, private request, or physical tag write occurred
+  during implementation.
+
 - Completed `[MVP]-[007]`: a supported, generation-bound MVP snapshot now exposes only the existing guarded
   manual assignment route. Spool selection and an External slot run fresh lower-boundary preflight, show one
   explicit confirmation, and only then invoke the existing mutex-owned POST/retry/exact-verification orchestrator

@@ -349,6 +349,20 @@ state blocks below UI. Tests prove no POST before confirmation and exactly one P
 the confirmed intent with a fake repository. Session close and token non-disclosure are covered; NFC write,
 overwrite, and clear remain unbound.
 
+- [ ] [MVP]-[008] Bind Guarded NFC Tag Linking Runtime
+Task Context
+Bind the existing Link, Overwrite, and Clear state machine and Android NDEF writer/read-back primitive to the
+production root through the same short-lived policy-bound repository and Keystore boundary. A selected spool must
+first enter an explicit live-tag read state. Preserve fingerprint continuity, explicit overwrite/clear confirmation,
+fresh GET validation immediately before a physical write, exact independent read-back, and no irreversible lock.
+No Bambuddy mutation is part of this task.
+Task DOD
+The production route does not write before an explicit confirmation. Unsupported, read-only, lost, and different
+tag outcomes fail closed; a replacement scan cannot authorize the prior tag. The production graph never retains a
+framework Tag, token, or tag authorization in saved state. Deterministic routing tests cover the live read,
+confirmation, fresh validation, and failure paths; implementation makes no private instance request or physical
+NFC write.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

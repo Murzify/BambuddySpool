@@ -51,11 +51,12 @@ class CommonArchitectureTest {
         assertTrue(shellFiles.isNotEmpty())
         assertFalse(
             shellFiles.any { source ->
+                // The NFC writer is the deliberately narrow Android bridge for shared tag-mutation contracts.
                 val nfcMutationAdapter = source.name == "AndroidNdefTagMutator.kt"
                 source.readText().lineSequence().any { line ->
                     (line.startsWith("import com.murzify.bambuddyspool.core.domain.") && !nfcMutationAdapter) ||
                         line.startsWith("import com.murzify.bambuddyspool.core.application.") ||
-                        line.startsWith("import com.murzify.bambuddyspool.feature.")
+                        (line.startsWith("import com.murzify.bambuddyspool.feature.") && !nfcMutationAdapter)
                 }
             }
         )
