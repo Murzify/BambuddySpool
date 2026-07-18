@@ -13,6 +13,8 @@ import com.murzify.bambuddyspool.core.application.Reducer
 import com.murzify.bambuddyspool.core.application.Reduction
 import com.murzify.bambuddyspool.core.application.UdfComponent
 import com.murzify.bambuddyspool.core.assignment.AssignmentContext
+import com.murzify.bambuddyspool.core.assignment.AssignmentPreflight
+import com.murzify.bambuddyspool.core.domain.AssignmentResult
 import com.murzify.bambuddyspool.core.domain.AssignmentSource
 import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
@@ -371,6 +373,46 @@ class RootComponent internal constructor(
         val reduction = RootReducer.reduce(mutableState.value, intent)
         mutableState.value = reduction.state
         reduction.effects.forEach(::handle)
+        when (intent) {
+            is RootIntent.StartAssignment,
+            is RootIntent.CreateManualAssignment -> startAssignmentPreflight(mutableState.value.assignmentIntent)
+            RootIntent.ConfirmAssignment -> executeConfirmedAssignment(mutableState.value.assignmentIntent)
+            else -> Unit
+        }
+    }
+
+    /**
+     * The root only routes typed results from the lower assignment boundary.  Even an unambiguous manual target
+     * receives this single explicit confirmation; selecting a slot alone never crosses the POST boundary.
+     */
+    private fun startAssignmentPreflight(intent: AssignmentIntent?) {
+        val current = intent ?: return
+        scope.launch {
+            val preflight = runCatching { connectionRuntime.preflightAssignment(current) }.getOrNull()
+            if (mutableState.value.assignmentIntent != current) return@launch
+            when (preflight) {
+                is AssignmentPreflight.Ready -> applyRoot(RootIntent.ShowAssignmentConfirmation(preflight.context))
+                is AssignmentPreflight.ConfirmationRequired ->
+                    applyRoot(RootIntent.ShowAssignmentConfirmation(preflight.context))
+                is AssignmentPreflight.AlreadyAssigned ->
+                    applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Success))
+                is AssignmentPreflight.Blocked,
+                null -> applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Error))
+            }
+        }
+    }
+
+    private fun executeConfirmedAssignment(intent: AssignmentIntent?) {
+        val current = intent ?: return
+        scope.launch {
+            val result = runCatching { connectionRuntime.executeConfirmedAssignment(current) }.getOrNull()
+            if (mutableState.value.assignmentIntent != current) return@launch
+            when (result) {
+                is AssignmentResult.Success -> applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Success))
+                is AssignmentResult.Failure,
+                null -> applyRoot(RootIntent.ShowTransient(RootTransientWorkflow.Error))
+            }
+        }
     }
 
     /** Future NFC assignment orchestration must call this immediately before its first POST. */

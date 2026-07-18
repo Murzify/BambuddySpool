@@ -2,6 +2,13 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[007]`: a supported, generation-bound MVP snapshot now exposes only the existing guarded
+  manual assignment route. Spool selection and an External slot run fresh lower-boundary preflight, show one
+  explicit confirmation, and only then invoke the existing mutex-owned POST/retry/exact-verification orchestrator
+  through a short-lived policy-bound session. Stale and degraded topology remain blocked below UI; NFC tag writes,
+  overwrite, and clear remain unbound. Deterministic fakes prove no POST before confirmation and exactly one POST
+  after it, without a private request or fixture.
+
 - Completed `[MVP]-[006]`: added an evidence-bound compatibility rule for one Bambu Lab A1 without AMS. A differing
   virtual-tray identifier can resolve only with API `model=A1`, exactly one physical tray, and exactly one existing
   assignment at the isolated documented `255/0` coordinates. `ams_exists` is capability metadata rather than

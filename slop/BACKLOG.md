@@ -333,6 +333,22 @@ evidence, duplicate/contradictory evidence, and multiple slots. `ams_exists` is 
 attached-AMS topology evidence, and cannot negate the independently proven physical single-slot state. No private
 request, mutation, NFC write, or sanitized private data is added.
 
+- [x] [MVP]-[007] Bind the Guarded Manual Assignment Runtime
+Task Context
+Bind the existing manual Spool-to-External-slot route to a short-lived production repository session only after a
+fresh, supported snapshot. The root must route selection through shared fresh preflight, show one explicit
+confirmation even for one unambiguous external slot, and invoke the existing assignment POST/retry/exact
+verification boundary only after that confirmation. Cache availability may be enabled only for a supported
+generation and must fail closed for stale, replaced, or degraded topology. Reuse the Keystore token, configured
+network policy, topology resolver, generation gate, and application-scoped mutex; do not add a UI bypass, NFC tag
+write binding, live request, mutation, or private fixture.
+Task DOD
+The production graph creates no assignment-capable client before a fresh generation is selected. A supported
+snapshot routes manual selection to one confirmation and then to the existing orchestrator; stale/unsupported
+state blocks below UI. Tests prove no POST before confirmation and exactly one POST plus exact verification after
+the confirmed intent with a fake repository. Session close and token non-disclosure are covered; NFC write,
+overwrite, and clear remain unbound.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

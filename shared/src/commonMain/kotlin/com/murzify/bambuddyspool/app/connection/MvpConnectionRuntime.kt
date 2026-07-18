@@ -6,6 +6,13 @@ import com.murzify.bambuddyspool.core.domain.PrinterId
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.domain.UnsupportedTopology
+import com.murzify.bambuddyspool.core.assignment.AssignmentFreshness
+import com.murzify.bambuddyspool.core.assignment.AssignmentFreshnessGate
+import com.murzify.bambuddyspool.core.assignment.AssignmentOrchestrator
+import com.murzify.bambuddyspool.core.assignment.AssignmentPreflight
+import com.murzify.bambuddyspool.core.assignment.DefaultAssignmentOrchestrator
+import com.murzify.bambuddyspool.core.domain.AssignmentResult
+import com.murzify.bambuddyspool.core.domain.StaleOrOfflineReason
 import com.murzify.bambuddyspool.core.network.BambuddyCredentialProvider
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkError
 import com.murzify.bambuddyspool.core.network.BambuddyNetworkResult
@@ -18,6 +25,7 @@ import com.murzify.bambuddyspool.core.projections.CacheProjectionError
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.CacheProjectionState
 import com.murzify.bambuddyspool.core.projections.MutationAvailability
+import com.murzify.bambuddyspool.core.projections.MutationDisabledReason
 import com.murzify.bambuddyspool.core.projections.PageRequest
 import com.murzify.bambuddyspool.core.projections.PagedResult
 import com.murzify.bambuddyspool.core.projections.PrinterSlotProjection
@@ -42,6 +50,8 @@ import com.murzify.bambuddyspool.core.sync.SnapshotStore
 import com.murzify.bambuddyspool.core.sync.SnapshotSyncResult
 import com.murzify.bambuddyspool.core.sync.SnapshotSyncTrigger
 import com.murzify.bambuddyspool.core.sync.SyncClock
+import com.murzify.bambuddyspool.core.topology.KnownSlotTopologyResolver
+import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -54,12 +64,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Owner-authorized read-only MVP bridge.
+ * Owner-authorized MVP connection bridge.
  *
  * Settings are intentionally process-local until the missing platform DataStore/Room factories are introduced.
  * The API token is never retained here: Android supplies the Keystore-backed [SecureTokenStore].  All repository
- * calls are GET requests performed by [AtomicSnapshotSynchronizer]; assignment and tag mutation paths are not
- * bound to this runtime.
+ * Initial synchronization is GET-only. A fresh, supported snapshot may subsequently create the existing guarded
+ * manual assignment boundary; NFC tag write, overwrite, and clear remain unbound.
  */
 internal class MvpConnectionRuntime(
     private val scope: CoroutineScope,
@@ -68,8 +78,9 @@ internal class MvpConnectionRuntime(
 ) : ConnectionSettingsStore {
     private val mutableSettings = MutableStateFlow(ConnectionSettings.Empty)
     val settings: StateFlow<ConnectionSettings> = mutableSettings.asStateFlow()
-    private val snapshotCache = ReadOnlySnapshotCache()
+    private val snapshotCache = MvpSnapshotCache()
     val cache: CacheProjectionRepository = snapshotCache
+    private val assignmentMutex = Mutex()
     val form = ConnectionFormComponent(
         service = ConnectionReplacementService(
             settingsStore = this,
@@ -87,6 +98,48 @@ internal class MvpConnectionRuntime(
     }
 
     fun close() = scope.cancel()
+
+    /**
+     * Runs preflight against a short-lived policy-bound repository session.  The caller receives no credential,
+     * repository, or mutation capability: it can only render the resulting fresh context or typed block.
+     */
+    suspend fun preflightAssignment(intent: AssignmentIntent): AssignmentPreflight {
+        val freshness = snapshotCache.freshness(intent.expectedSnapshotGeneration)
+        if (freshness is AssignmentFreshness.Blocked) {
+            return AssignmentPreflight.Blocked(
+                com.murzify.bambuddyspool.core.domain.StaleOrOfflineState(freshness.reason)
+            )
+        }
+        return withAssignmentOrchestrator { it.preflight(intent) }
+    }
+
+    /**
+     * Executes only after the root's transient confirmation hand-off.  [DefaultAssignmentOrchestrator] repeats
+     * freshness and topology preflight below presentation before it can cross the single POST boundary.
+     */
+    suspend fun executeConfirmedAssignment(intent: AssignmentIntent): AssignmentResult = withAssignmentOrchestrator {
+        it.execute(intent)
+    }
+
+    private suspend fun <T> withAssignmentOrchestrator(block: suspend (AssignmentOrchestrator) -> T): T {
+        val settings = read()
+        val baseUrl = settings.baseUrl ?: error("No configured Bambuddy connection.")
+        val token = tokenStore.currentTokenForReplacement() ?: error("No configured Bambuddy credential.")
+        val session = repositorySessions.create(baseUrl, token, settings)
+        return try {
+            block(
+                DefaultAssignmentOrchestrator(
+                    repository = session.repository,
+                    topologyResolver = KnownSlotTopologyResolver(),
+                    freshnessGate = AssignmentFreshnessGate { expected -> snapshotCache.freshness(expected) },
+                    applicationScope = scope,
+                    mutationMutex = assignmentMutex
+                )
+            )
+        } finally {
+            session.close()
+        }
+    }
 
     private inner class ReadOnlyMvpValidator : ConnectionValidator {
         override suspend fun validateConnection(
@@ -160,7 +213,7 @@ internal class MvpConnectionRuntime(
     }
 }
 
-/** Test seam for deterministic read-only connection checks; production always supplies the policy-bound Ktor session. */
+/** Test seam for deterministic connection checks; production always supplies the policy-bound Ktor session. */
 internal fun interface MvpRepositorySessionFactory {
     fun create(
         baseUrl: CanonicalBaseUrl,
@@ -207,14 +260,14 @@ private fun BambuddyNetworkResult<Unit>.toValidationResult(): ConnectionValidati
 }
 
 /**
- * Small process-local cache used only while no platform Room factory exists. It never enables mutations.
+ * Small process-local cache used only while no platform Room factory exists.
  *
  * An unsupported physical topology can be represented only as a typed read-only degradation. Its snapshot has no
  * slots or assignments, which prevents UI consumers from treating unverified server coordinates as a mapping.
  */
-private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
+private class MvpSnapshotCache : SnapshotStore, CacheProjectionRepository {
     private val mutex = Mutex()
-    private val snapshot = MutableStateFlow<ReadOnlyCacheEntry?>(null)
+    private val snapshot = MutableStateFlow<MvpCacheEntry?>(null)
     private var generation = SnapshotGeneration.from(0) ?: error("Initial generation is invalid.")
 
     override suspend fun currentGeneration(): SnapshotGeneration = mutex.withLock { generation }
@@ -225,7 +278,7 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
     ): SnapshotPublishResult = mutex.withLock {
         if (generation != onlyIfCurrentGeneration) return@withLock SnapshotPublishResult.StaleGeneration
         generation = SnapshotGeneration.nextAfter(generation) ?: return@withLock SnapshotPublishResult.Rejected("Generation overflow")
-        this.snapshot.value = ReadOnlyCacheEntry(snapshot, null)
+        this.snapshot.value = MvpCacheEntry(snapshot, null, generation)
         SnapshotPublishResult.Published
     }
 
@@ -236,8 +289,19 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
     ): SnapshotPublishResult = mutex.withLock {
         if (generation != onlyIfCurrentGeneration) return@withLock SnapshotPublishResult.StaleGeneration
         generation = SnapshotGeneration.nextAfter(generation) ?: return@withLock SnapshotPublishResult.Rejected("Generation overflow")
-        this.snapshot.value = ReadOnlyCacheEntry(snapshot, failure)
+        this.snapshot.value = MvpCacheEntry(snapshot, failure, generation)
         SnapshotPublishResult.Published
+    }
+
+    suspend fun freshness(expected: SnapshotGeneration): AssignmentFreshness = mutex.withLock {
+        val entry = snapshot.value
+        when {
+            entry == null -> AssignmentFreshness.Blocked(StaleOrOfflineReason.RefreshFailed)
+            entry.degradation != null -> AssignmentFreshness.Blocked(StaleOrOfflineReason.RefreshFailed)
+            entry.generation != expected || generation != expected ->
+                AssignmentFreshness.Blocked(StaleOrOfflineReason.SnapshotGenerationMismatch)
+            else -> AssignmentFreshness.Fresh
+        }
     }
 
     override fun observePrinters(): Flow<CacheProjectionState<List<PrinterSummaryProjection>>> = snapshot.map { value ->
@@ -299,20 +363,28 @@ private class ReadOnlySnapshotCache : SnapshotStore, CacheProjectionRepository {
         SpoolSummaryProjection(spool.id, spool.name, spool.manufacturer, spool.material, spool.colorName, spool.remainingGrams, null, null, null)
     }
 
-    private fun <T> content(degradation: UnsupportedTopology?, value: T): CacheProjectionState.Content<T> = CacheProjectionState.Content(
-        value,
-        CacheAvailability(
-            isStale = false,
-            nonBlockingError = degradation?.let(CacheProjectionError::UnsupportedTopology),
-            mutation = MutationAvailability.Disabled(
-                if (degradation == null) com.murzify.bambuddyspool.core.projections.MutationDisabledReason.NoCachedSnapshot
-                else com.murzify.bambuddyspool.core.projections.MutationDisabledReason.UnsupportedTopology
+    private fun <T> content(degradation: UnsupportedTopology?, value: T): CacheProjectionState.Content<T> {
+        val mutation = if (degradation == null) {
+            MutationAvailability.Available(generation)
+        } else {
+            MutationAvailability.Disabled(MutationDisabledReason.UnsupportedTopology)
+        }
+        return CacheProjectionState.Content(
+            value,
+            CacheAvailability(
+                isStale = false,
+                nonBlockingError = degradation?.let(CacheProjectionError::UnsupportedTopology),
+                mutation = mutation
             )
         )
-    )
+    }
 }
 
-private data class ReadOnlyCacheEntry(val snapshot: DomainSnapshot, val degradation: UnsupportedTopology?)
+private data class MvpCacheEntry(
+    val snapshot: DomainSnapshot,
+    val degradation: UnsupportedTopology?,
+    val generation: SnapshotGeneration
+)
 
 /**
  * Narrow MVP-only escape hatch for a server whose physical topology has no supported mapping rule.
@@ -323,7 +395,7 @@ private data class ReadOnlyCacheEntry(val snapshot: DomainSnapshot, val degradat
  */
 private class MvpUnsupportedTopologyReadOnlyFallback(
     private val repository: BambuddyRepository,
-    private val store: ReadOnlySnapshotCache,
+    private val store: MvpSnapshotCache,
     private val clock: SyncClock
 ) {
     suspend fun sync(failure: UnsupportedTopology): SnapshotSyncResult = try {
@@ -373,7 +445,9 @@ private class MvpUnsupportedTopologyReadOnlyFallback(
     }
 }
 
-private class MvpReadOnlyFallbackAbort(val failure: com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure) : Throwable()
+private class MvpReadOnlyFallbackAbort(
+    val failure: com.murzify.bambuddyspool.core.sync.SnapshotSyncFailure
+) : Throwable()
 
 private object RejectedTokenStore : SecureTokenStore {
     override suspend fun replaceToken(value: SecretValue): Nothing = error("Android SEC-001 storage is required.")
