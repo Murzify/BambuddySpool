@@ -256,6 +256,16 @@ Format, Detekt, Lint, architecture checks, and tests pass; main thread and UI me
 
 ## MVP Sequencing (Owner-Authorized)
 
+- [x] [MVP]-[010] Declare Android NFC Permission for Foreground Reader Mode
+Task Context
+Declare the Android normal NFC permission required by `NfcAdapter.enableReaderMode`. Keep NFC hardware optional so
+devices without NFC can still install and use non-NFC features. Do not alter NFC workflow authorization, platform
+writer behavior, network access, or mutation controls.
+Task DOD
+The merged Android manifest declares `android.permission.NFC` while retaining the optional NFC feature. A focused
+manifest assertion or built-artifact inspection proves the permission is packaged, the debug APK builds, and no
+private Bambuddy request, POST, or physical NFC write occurs.
+
 - [x] [MVP]-[009] Project Fresh MVP Cache State onto Home
 Task Context
 The process-local MVP connection cache can successfully publish a supported fresh snapshot while Home still labels

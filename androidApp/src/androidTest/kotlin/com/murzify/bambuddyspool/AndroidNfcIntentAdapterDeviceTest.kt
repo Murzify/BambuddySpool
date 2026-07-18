@@ -2,6 +2,7 @@ package com.murzify.bambuddyspool
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
@@ -57,6 +58,10 @@ class AndroidNfcIntentAdapterDeviceTest {
     @Test
     fun manifestUsesSingleTopAndResolvesOnlyTheNfcScheme() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assertEquals(
+            PackageManager.PERMISSION_GRANTED,
+            context.packageManager.checkPermission(android.Manifest.permission.NFC, context.packageName)
+        )
         val activity = context.packageManager.getActivityInfo(
             android.content.ComponentName(context, MainActivity::class.java),
             0

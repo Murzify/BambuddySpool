@@ -2,6 +2,11 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[010]`: declared the Android normal `android.permission.NFC` permission required by foreground
+  reader mode, while retaining the optional NFC hardware feature for installation on non-NFC devices. The focused
+  Android manifest assertion passed on the supported physical device, and the built debug APK packages the
+  permission. No Bambuddy request, POST, or physical NFC write occurred.
+
 - Completed `[MVP]-[009]`: Home now combines configured settings with the existing cache projection instead of
   labeling every configured instance stale. Only a non-stale supported snapshot with existing
   `MutationAvailability.Available` renders online; initial, refreshing, failed, stale, and unsupported-topology
