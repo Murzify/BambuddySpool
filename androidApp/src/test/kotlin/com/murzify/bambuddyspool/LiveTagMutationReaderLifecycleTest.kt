@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 class LiveTagMutationReaderLifecycleTest {
 
     @Test
-    fun physicalMutationRetainsReaderUntilWriterAndReadBackComplete() {
+    fun terminalMutationResultRetainsReaderAndSuppressesCallbacksUntilDismissed() {
         val lifecycle = LiveTagMutationReaderLifecycle()
 
         assertTrue(lifecycle.beginRead())
@@ -21,7 +21,11 @@ class LiveTagMutationReaderLifecycleTest {
         assertFalse(lifecycle.cancelRead())
         assertTrue(lifecycle.isReaderEnabled)
 
-        assertTrue(lifecycle.finishMutation())
+        assertFalse(lifecycle.finishMutation())
+        assertTrue(lifecycle.isReaderEnabled)
+        assertFalse(lifecycle.acceptTag())
+        assertFalse(lifecycle.beginRead())
+        assertTrue(lifecycle.cancelRead())
         assertFalse(lifecycle.isReaderEnabled)
         assertFalse(lifecycle.finishMutation())
     }
@@ -39,13 +43,30 @@ class LiveTagMutationReaderLifecycleTest {
     }
 
     @Test
-    fun failedPhysicalMutationStillDisablesReaderExactlyOnce() {
+    fun retryResumesAwaitingTagWithoutRedundantReaderToggle() {
         val lifecycle = LiveTagMutationReaderLifecycle()
 
         assertTrue(lifecycle.beginRead())
         assertTrue(lifecycle.beginMutation())
 
-        assertTrue(lifecycle.finishMutation())
+        assertFalse(lifecycle.finishMutation())
+        assertTrue(lifecycle.isReaderEnabled)
+        assertFalse(lifecycle.beginRead())
+        assertTrue(lifecycle.acceptTag())
+        assertTrue(lifecycle.cancelRead())
+        assertFalse(lifecycle.isReaderEnabled)
+    }
+
+    @Test
+    fun hostPauseConsumesTerminalReaderOwnershipExactlyOnce() {
+        val lifecycle = LiveTagMutationReaderLifecycle()
+
+        assertTrue(lifecycle.beginRead())
+        assertTrue(lifecycle.beginMutation())
+        assertFalse(lifecycle.finishMutation())
+
+        assertTrue(lifecycle.pause())
+        assertFalse(lifecycle.pause())
         assertFalse(lifecycle.finishMutation())
         assertFalse(lifecycle.isReaderEnabled)
     }

@@ -1,8 +1,8 @@
 package com.murzify.bambuddyspool
 
+import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.os.SystemClock
-import android.nfc.NfcAdapter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this)
+        liveTagMutationBridge.onHostPaused()
         super.onPause()
     }
 

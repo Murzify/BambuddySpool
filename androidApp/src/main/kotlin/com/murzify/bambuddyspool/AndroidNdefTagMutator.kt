@@ -285,12 +285,13 @@ internal object AndroidNdefMessageCodec {
 }
 
 /** Android-owned process-local hand-off for the shared link workflow. */
-internal class AndroidLiveTagMutationBridge(
-    private val mutator: AndroidNdefTagMutator = AndroidNdefTagMutator()
-) : LiveTagMutationBridge {
+internal class AndroidLiveTagMutationBridge(private val mutator: AndroidNdefTagMutator = AndroidNdefTagMutator()) :
+    LiveTagMutationBridge {
     private val lifecycle = LiveTagMutationReaderLifecycle()
     private var liveTag: Tag? = null
+
     @Volatile var onRead: ((TagMutationRead) -> Unit)? = null
+
     /** Activity uses this only to toggle Android foreground reader mode for an active link/retry flow. */
     @Volatile var onArmedChanged: ((Boolean) -> Unit)? = null
     val isArmed: Boolean get() = synchronized(this) { lifecycle.isReaderEnabled }
@@ -310,6 +311,19 @@ internal class AndroidLiveTagMutationBridge(
     override fun cancelRead() {
         val disableReader = synchronized(this) {
             if (!lifecycle.cancelRead()) {
+                false
+            } else {
+                liveTag = null
+                true
+            }
+        }
+        if (disableReader) onArmedChanged?.invoke(false)
+    }
+
+    /** A paused host must release foreground ownership instead of letting a held NDEF tag re-enter the Activity. */
+    fun onHostPaused() {
+        val disableReader = synchronized(this) {
+            if (!lifecycle.pause()) {
                 false
             } else {
                 liveTag = null
@@ -349,11 +363,10 @@ internal class AndroidLiveTagMutationBridge(
                 TagMutationOperation.Clear -> mutator.clear(tag, expectedFingerprint)
             }
         } finally {
-            val disableReader = synchronized(this) {
+            synchronized(this) {
                 liveTag = null
                 lifecycle.finishMutation()
             }
-            if (disableReader) onArmedChanged?.invoke(false)
         }
     }
 }
@@ -362,7 +375,8 @@ internal class AndroidLiveTagMutationBridge(
  * Framework-free lifecycle for the Android foreground reader during a live tag mutation.
  *
  * A physical write must retain foreground reader ownership through independent read-back; otherwise the Android
- * system may provision the still-held blank tag. Only [AwaitingTag] accepts reader callbacks. In particular,
+ * system may rediscover the newly written URI. Only [AwaitingTag] accepts reader callbacks. A terminal physical
+ * result retains reader ownership until the user dismisses the transient surface or the host pauses. In particular,
  * cancellation and a second begin request cannot tear down reader mode during [Mutating].
  */
 internal class LiveTagMutationReaderLifecycle {
@@ -377,6 +391,10 @@ internal class LiveTagMutationReaderLifecycle {
             phase = Phase.AwaitingTag
             true
         }
+        Phase.Terminal -> {
+            phase = Phase.AwaitingTag
+            false
+        }
         Phase.AwaitingTag, Phase.Mutating -> false
     }
 
@@ -386,7 +404,20 @@ internal class LiveTagMutationReaderLifecycle {
             phase = Phase.Inactive
             true
         }
+        Phase.Terminal -> {
+            phase = Phase.Inactive
+            true
+        }
         Phase.Inactive, Phase.Mutating -> false
+    }
+
+    /** A host lifecycle pause always releases foreground reader mode, including during physical I/O. */
+    fun pause(): Boolean = when (phase) {
+        Phase.Inactive -> false
+        Phase.AwaitingTag, Phase.Mutating, Phase.Terminal -> {
+            phase = Phase.Inactive
+            true
+        }
     }
 
     fun acceptTag(): Boolean = phase == Phase.AwaitingTag
@@ -397,22 +428,23 @@ internal class LiveTagMutationReaderLifecycle {
             phase = Phase.Mutating
             true
         }
-        Phase.Inactive, Phase.Mutating -> false
+        Phase.Inactive, Phase.Mutating, Phase.Terminal -> false
     }
 
-    /** Returns true exactly once when physical I/O, including read-back, has completed. */
+    /** Keeps reader ownership after physical I/O, including read-back, until explicit dismissal. */
     fun finishMutation(): Boolean = when (phase) {
         Phase.Mutating -> {
-            phase = Phase.Inactive
-            true
+            phase = Phase.Terminal
+            false
         }
-        Phase.Inactive, Phase.AwaitingTag -> false
+        Phase.Inactive, Phase.AwaitingTag, Phase.Terminal -> false
     }
 
     private enum class Phase {
         Inactive,
         AwaitingTag,
-        Mutating
+        Mutating,
+        Terminal
     }
 }
 
@@ -429,11 +461,13 @@ private fun Tag.readClassification(): NfcReadClassification {
         ndef.connect()
         val message = ndef.cachedNdefMessage ?: return NfcReadClassifier.classify(CommonNdefMessage.Empty)
         NfcReadClassifier.classify(
-            CommonNdefMessage(message.records.map { record ->
-                record.takeIf { it.tnf == NdefRecord.TNF_WELL_KNOWN && it.type.contentEquals(NdefRecord.RTD_URI) }
-                    ?.toUri()?.toString()?.let(CommonNdefRecord::Uri)
-                    ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
-            })
+            CommonNdefMessage(
+                message.records.map { record ->
+                    record.takeIf { it.tnf == NdefRecord.TNF_WELL_KNOWN && it.type.contentEquals(NdefRecord.RTD_URI) }
+                        ?.toUri()?.toString()?.let(CommonNdefRecord::Uri)
+                        ?: CommonNdefRecord.Unknown(record.tnf.toString(), record.payload)
+                }
+            )
         )
     } catch (_: TagLostException) {
         NfcReadClassification.ReadFailure(NfcReadFailureReason.TagRemoved)

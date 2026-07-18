@@ -411,6 +411,23 @@ replacement tag during mutation, and disables it once after success or failure. 
 the reader-enable/disable and cancellation transitions without Android framework tags. No private Bambuddy request,
 POST, physical NFC write, tag lock, or secret logging occurs.
 
+- [x] [MVP]-[013] Retain NFC Ownership Until the Terminal Surface Is Dismissed
+Task Context
+After a successful physical NDEF write, a held tag can be rediscovered through the application's canonical NDEF
+intent filter when foreground reader mode is disabled immediately. Retain foreground-reader ownership after a
+physical terminal result and suppress callbacks until the user explicitly dismisses the tag-mutation result or the
+Activity pauses. A successful surface must provide a distinct Done action that tells the user to remove the tag;
+it must not present cancellation as success completion. Retrying a failed physical operation must resume awaiting
+a read without a redundant platform reader-mode toggle. Do not change tag authorization, write/read-back semantics,
+Android intent routing outside this workflow, or Bambuddy access.
+Task DOD
+Terminal write results retain foreground reader ownership and ignore held-tag callbacks until Done/dismiss or
+lifecycle pause disables it once. A retry transition reuses the existing reader-mode session, and success exposes
+resource-backed remove-tag and Done guidance. Pure lifecycle coverage proves terminal retention, callback
+suppression, dismiss/pause shutdown, and retry continuity; targeted build/tests and a whitespace diff check pass.
+No private Bambuddy request, POST, physical NFC write, tag lock, credential logging, or private fixture capture
+occurs during implementation.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

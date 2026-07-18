@@ -7,25 +7,25 @@ import com.murzify.bambuddyspool.app.navigation.RootDestination
 import com.murzify.bambuddyspool.core.domain.SlotKey
 import com.murzify.bambuddyspool.core.domain.SnapshotGeneration
 import com.murzify.bambuddyspool.core.domain.SpoolId
+import com.murzify.bambuddyspool.core.domain.TagMutationOutcome
+import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
+import com.murzify.bambuddyspool.core.nfc.UnsupportedTagReason
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
-import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.CacheAvailability
 import com.murzify.bambuddyspool.core.projections.CacheProjectionError
 import com.murzify.bambuddyspool.core.projections.CacheProjectionState
+import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
 import com.murzify.bambuddyspool.core.projections.MutationAvailability
 import com.murzify.bambuddyspool.core.projections.MutationDisabledReason
 import com.murzify.bambuddyspool.core.settings.BaseUrlParseResult
 import com.murzify.bambuddyspool.core.settings.ConnectionSettings
 import com.murzify.bambuddyspool.core.settings.parseCanonicalBaseUrl
-import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
-import com.murzify.bambuddyspool.core.nfc.UnsupportedTagReason
 import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
+import com.murzify.bambuddyspool.feature.tagmutation.TagMutationFailure
 import com.murzify.bambuddyspool.feature.tagmutation.TagMutationOperation
 import com.murzify.bambuddyspool.feature.tagmutation.TagMutationRead
 import com.murzify.bambuddyspool.feature.tagmutation.TagMutationState
-import com.murzify.bambuddyspool.core.domain.TagMutationOutcome
-import com.murzify.bambuddyspool.feature.tagmutation.TagMutationFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -122,6 +122,23 @@ class RootComponentTest {
             (wrong.tagMutation as TagMutationState.Failed).reason
         )
     }
+
+    @Test
+    fun doneTagMutationDismissesOnlyTheTerminalTagSurface() {
+        val spool = requireNotNull(SpoolId.from(4))
+        val state = RootState(
+            transientWorkflow = RootTransientWorkflow.TagMutation,
+            pendingTagMutationSpoolId = spool,
+            tagMutation = TagMutationState.Succeeded(TagMutationOperation.Link(spool, "bambuddy-spool://spool/4"))
+        )
+
+        val dismissed = RootReducer.reduce(state, RootIntent.DoneTagMutation).state
+
+        assertNull(dismissed.transientWorkflow)
+        assertNull(dismissed.pendingTagMutationSpoolId)
+        assertEquals(TagMutationState.Idle, dismissed.tagMutation)
+    }
+
     @Test
     fun independentDestinationHistoriesSurviveSwitchingAndRecreationWithoutTransientWorkflow() {
         val firstStateKeeper = StateKeeperDispatcher()
@@ -269,7 +286,9 @@ class RootComponentTest {
 private class RecordingTagBridge : LiveTagMutationBridge {
     var beginReads = 0
     var writes = 0
-    override fun beginRead() { beginReads++ }
+    override fun beginRead() {
+        beginReads++
+    }
     override fun cancelRead() = Unit
     override suspend fun mutate(expectedFingerprint: String, operation: TagMutationOperation): TagMutationOutcome {
         writes++

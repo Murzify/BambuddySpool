@@ -2,6 +2,13 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[013]`: Android foreground reader ownership now survives a completed tag write/read-back while
+  the result surface is visible, suppressing held-tag callbacks that could otherwise relaunch the application via
+  its NDEF intent filter. Success tells the user to remove the tag and uses a distinct Done action; dismissal or
+  host pause releases reader ownership. Failed-write retry returns to awaiting a tag without a redundant reader
+  toggle. Focused Android unit tests and debug assembly passed; no Bambuddy request, POST, physical NFC write, or
+  tag lock occurred.
+
 - Completed `[MVP]-[012]`: Android foreground reader mode now remains active from a live-tag confirmation through
   the fingerprint-bound physical write and independent read-back. The framework-free lifecycle rejects callback,
   cancel, and new-read transitions during physical I/O, then clears the process-local tag and disables reader mode

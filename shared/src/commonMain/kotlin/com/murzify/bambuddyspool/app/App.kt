@@ -154,7 +154,8 @@ private fun RootContent(
                 state = state.tagMutation,
                 onConfirm = { root.accept(RootIntent.ConfirmTagMutation) },
                 onCancel = { root.accept(RootIntent.CancelTagMutation) },
-                onRetry = { root.accept(RootIntent.RetryTagMutation) }
+                onRetry = { root.accept(RootIntent.RetryTagMutation) },
+                onDone = { root.accept(RootIntent.DoneTagMutation) }
             )
         }
     }

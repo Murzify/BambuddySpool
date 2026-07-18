@@ -96,6 +96,8 @@
     <string name="tag_confirm_clear">Clear this NFC tag?</string>
     <string name="tag_keep_held">Keep the tag held against your device until writing and independent read-back finish.</string>
     <string name="tag_linked">The NFC tag is linked.</string>
+    <string name="tag_remove_before_done">Remove the tag from your device, then select Done.</string>
+    <string name="tag_done">Done</string>
     <string name="tag_failed">The NFC tag operation could not be verified.</string>
     <string name="tag_retry">Read tag again</string>
     <string name="tag_cancel">Cancel</string>

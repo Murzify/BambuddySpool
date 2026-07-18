@@ -130,6 +130,7 @@ sealed interface RootIntent {
     data object ConfirmTagMutation : RootIntent
     data object RetryTagMutation : RootIntent
     data object CancelTagMutation : RootIntent
+    data object DoneTagMutation : RootIntent
 
     data class ShowTransient(val workflow: RootTransientWorkflow) : RootIntent
     data object DismissTransient : RootIntent
@@ -254,6 +255,9 @@ internal object RootReducer : Reducer<RootState, RootIntent, RootEffect> {
                 ?: state.tagMutation)
         )
         RootIntent.CancelTagMutation -> Reduction(
+            state.copy(transientWorkflow = null, pendingTagMutationSpoolId = null, tagMutation = TagMutationState.Idle)
+        )
+        RootIntent.DoneTagMutation -> Reduction(
             state.copy(transientWorkflow = null, pendingTagMutationSpoolId = null, tagMutation = TagMutationState.Idle)
         )
 
@@ -414,10 +418,12 @@ class RootComponent internal constructor(
             RootIntent.ConfirmAssignment -> executeConfirmedAssignment(mutableState.value.assignmentIntent)
             is RootIntent.StartTagLink -> startTagLink(intent.spoolId)
             RootIntent.ConfirmTagMutation -> executeConfirmedTagMutation(mutableState.value.tagMutation)
-            RootIntent.RetryTagMutation -> if (mutableState.value.tagMutation is TagMutationState.AwaitingReadBeforeRetry) {
-                liveTagMutationBridge.beginRead()
-            }
-            RootIntent.CancelTagMutation -> liveTagMutationBridge.cancelRead()
+            RootIntent.RetryTagMutation ->
+                if (mutableState.value.tagMutation is TagMutationState.AwaitingReadBeforeRetry) {
+                    liveTagMutationBridge.beginRead()
+                }
+            RootIntent.CancelTagMutation,
+            RootIntent.DoneTagMutation -> liveTagMutationBridge.cancelRead()
             else -> Unit
         }
     }
