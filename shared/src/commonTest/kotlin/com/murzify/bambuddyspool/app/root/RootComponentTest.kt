@@ -10,6 +10,14 @@ import com.murzify.bambuddyspool.core.domain.SpoolId
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.EmptyCacheProjectionRepository
+import com.murzify.bambuddyspool.core.projections.CacheAvailability
+import com.murzify.bambuddyspool.core.projections.CacheProjectionError
+import com.murzify.bambuddyspool.core.projections.CacheProjectionState
+import com.murzify.bambuddyspool.core.projections.MutationAvailability
+import com.murzify.bambuddyspool.core.projections.MutationDisabledReason
+import com.murzify.bambuddyspool.core.settings.BaseUrlParseResult
+import com.murzify.bambuddyspool.core.settings.ConnectionSettings
+import com.murzify.bambuddyspool.core.settings.parseCanonicalBaseUrl
 import com.murzify.bambuddyspool.core.nfc.NfcReadClassification
 import com.murzify.bambuddyspool.core.nfc.UnsupportedTagReason
 import com.murzify.bambuddyspool.feature.tagmutation.LiveTagMutationBridge
@@ -23,6 +31,48 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class RootComponentTest {
+    @Test
+    fun freshSupportedMvpSnapshotMakesHomeOnline() {
+        val generation = requireNotNull(SnapshotGeneration.from(1))
+
+        assertEquals(
+            HomeConnectionState.Online,
+            projectHomeConnectionState(
+                configuredSettings(),
+                CacheProjectionState.Content(
+                    value = Unit,
+                    availability = CacheAvailability(
+                        isStale = false,
+                        nonBlockingError = null,
+                        mutation = MutationAvailability.Available(generation)
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun unavailableOrFailedMvpSnapshotsKeepHomeStale() {
+        val configured = configuredSettings()
+        val unavailable = CacheProjectionState.Content(
+            value = Unit,
+            availability = CacheAvailability(
+                isStale = false,
+                nonBlockingError = null,
+                mutation = MutationAvailability.Disabled(MutationDisabledReason.UnsupportedTopology)
+            )
+        )
+
+        assertEquals(HomeConnectionState.Stale, projectHomeConnectionState(configured, unavailable))
+        assertEquals(
+            HomeConnectionState.Stale,
+            projectHomeConnectionState(
+                configured,
+                CacheProjectionState.FatalErrorWithoutCache(CacheProjectionError.NoConfiguredConnection)
+            )
+        )
+    }
+
     @Test
     fun tagLinkRequiresALiveReadAndLeavesNoAuthorizationForRecreation() {
         val stateKeeper = StateKeeperDispatcher()
@@ -207,6 +257,13 @@ class RootComponentTest {
         onStart()
         onResume()
     }
+
+    private fun configuredSettings(): ConnectionSettings = ConnectionSettings(
+        baseUrl = (parseCanonicalBaseUrl("https://bambuddy.example") as BaseUrlParseResult.Success).value,
+        defaultPrinterId = null,
+        httpConsentOrigin = null,
+        tlsOverrideHostname = null
+    )
 }
 
 private class RecordingTagBridge : LiveTagMutationBridge {

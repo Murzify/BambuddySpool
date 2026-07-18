@@ -2,6 +2,11 @@
 
 ## 2026-07-18
 
+- Completed `[MVP]-[009]`: Home now combines configured settings with the existing cache projection instead of
+  labeling every configured instance stale. Only a non-stale supported snapshot with existing
+  `MutationAvailability.Available` renders online; initial, refreshing, failed, stale, and unsupported-topology
+  projections remain stale and mutation gates stay unchanged.
+
 - Completed `[MVP]-[008]`: bound the production Link NFC tag route to a process-local Android foreground reader,
   the existing shared link/overwrite policy, an explicit confirmation, a short-lived policy-bound GET validation,
   and the fingerprint-bound Android NDEF write plus independent reread primitive. Framework tags, credentials, and

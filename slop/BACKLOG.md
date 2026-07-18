@@ -256,6 +256,17 @@ Format, Detekt, Lint, architecture checks, and tests pass; main thread and UI me
 
 ## MVP Sequencing (Owner-Authorized)
 
+- [x] [MVP]-[009] Project Fresh MVP Cache State onto Home
+Task Context
+The process-local MVP connection cache can successfully publish a supported fresh snapshot while Home still labels
+the connection stale because its status collector observes configured settings only. Project the existing cache
+availability into Home so a supported, fresh snapshot is online and exposes the guarded manual-assignment route.
+Snapshots that are unavailable, refreshing, stale, degraded, or failed must remain stale. Preserve the GET-only
+initial sync and all lower mutation/security gates.
+Task DOD
+Home derives its connection presentation from configured settings plus the cache projection; a fresh supported
+snapshot is online, and unavailable/degraded/error projections are stale. Deterministic tests cover both outcomes.
+
 - [x] [MVP]-[001] Wire Safe Production Setup and Settings
 Task Context
 Connect the existing shared Setup/Settings URL/token form to the production root. Use a concrete non-secret

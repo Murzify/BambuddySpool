@@ -28,6 +28,9 @@ import com.murzify.bambuddyspool.core.platform.NfcAvailability
 import com.murzify.bambuddyspool.core.platform.NfcObservation
 import com.murzify.bambuddyspool.core.platform.NfcService
 import com.murzify.bambuddyspool.core.projections.CacheProjectionRepository
+import com.murzify.bambuddyspool.core.projections.CacheProjectionState
+import com.murzify.bambuddyspool.core.projections.MutationAvailability
+import com.murzify.bambuddyspool.core.settings.ConnectionSettings
 import com.murzify.bambuddyspool.feature.assignment.AssignmentIntent
 import com.murzify.bambuddyspool.feature.assignment.CombinedAssignmentConfirmation
 import com.murzify.bambuddyspool.feature.assignment.toCombinedConfirmation
@@ -47,6 +50,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -387,18 +391,12 @@ class RootComponent internal constructor(
             }
         }
         scope.launch {
-            connectionSettings.collectLatest { settings ->
-                accept(
-                    RootIntent.UpdateHomeStatus(
-                        connectionState = if (settings.baseUrl == null) {
-                            HomeConnectionState.NotConfigured
-                        } else {
-                            HomeConnectionState.Stale
-                        },
-                        nfcState = nfcService.availability.toHomeNfcState()
-                    )
+            connectionSettings.combine(spoolProjectionRepository.observePrinters()) { settings, projection ->
+                RootIntent.UpdateHomeStatus(
+                    connectionState = projectHomeConnectionState(settings, projection),
+                    nfcState = nfcService.availability.toHomeNfcState()
                 )
-            }
+            }.collectLatest(::accept)
         }
     }
 
@@ -535,6 +533,21 @@ class RootComponent internal constructor(
 private fun RootDestination.toConfig(): RootConfig = RootConfig.valueOf(name)
 
 private fun RootConfig.toDestination(): RootDestination = RootDestination.valueOf(name)
+
+/**
+ * Home may call a connection fresh only when the configured instance has published a full, supported snapshot.
+ * This mirrors the cache's existing mutation availability rather than inferring freshness from settings alone.
+ */
+internal fun projectHomeConnectionState(
+    settings: ConnectionSettings,
+    projection: CacheProjectionState<*>
+): HomeConnectionState = when {
+    settings.baseUrl == null -> HomeConnectionState.NotConfigured
+    projection is CacheProjectionState.Content &&
+        !projection.availability.isStale &&
+        projection.availability.mutation is MutationAvailability.Available -> HomeConnectionState.Online
+    else -> HomeConnectionState.Stale
+}
 
 private fun NfcAvailability.toHomeNfcState(): HomeNfcState = when (this) {
     NfcAvailability.Available -> HomeNfcState.Available
