@@ -13,8 +13,8 @@ import kotlinx.serialization.json.JsonObject
 internal typealias AuthMeDto = JsonObject
 
 @Serializable
-internal data class PrinterDto(val id: Long, val name: String) {
-    fun toDomain(): Printer = Printer(id = id.toPrinterId(), name = name)
+internal data class PrinterDto(val id: Long, val name: String, val model: String? = null) {
+    fun toDomain(): Printer = Printer(id = id.toPrinterId(), name = name, model = model)
 }
 
 @Serializable
@@ -22,12 +22,14 @@ internal data class PrinterStatusDto(
     val id: Long,
     val name: String,
     val connected: Boolean,
+    @SerialName("ams_exists") val amsExists: Boolean? = null,
     @SerialName("vt_tray") val virtualTrays: List<VirtualTrayDto>
 ) {
     fun toDomain(): PrinterStatus = PrinterStatus(
         printer = Printer(id = id.toPrinterId(), name = name),
         connected = connected,
-        virtualTrays = virtualTrays.map { it.toDomain() }
+        virtualTrays = virtualTrays.map { it.toDomain() },
+        amsExists = amsExists
     )
 }
 

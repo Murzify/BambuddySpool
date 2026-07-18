@@ -15,6 +15,106 @@ import kotlin.test.assertIs
 
 class SlotTopologyResolverTest {
     @Test
+    fun ownerConfirmedA1WithoutAmsResolvesNonDefaultVirtualTrayFromIndependentAssignmentEvidence() {
+        val resolution = KnownSlotTopologyResolver().resolve(
+            printer = a1Printer(),
+            status = a1Status(VirtualTray(id = 17, label = "External")),
+            assignments = listOf(assignment(slot = slotKey(amsId = 255, trayId = 0)))
+        )
+
+        val supported = assertIs<SlotTopologyResolution.Supported>(resolution)
+        assertEquals(listOf(slotKey(amsId = 255, trayId = 0)), supported.slots.map { it.key })
+        assertEquals(listOf(SlotKind.External), supported.slots.map { it.kind })
+    }
+
+    @Test
+    fun nonDefaultA1VirtualTrayWithoutAssignmentEvidenceFailsClosed() {
+        assertUnsupported(
+            KnownSlotTopologyResolver().resolve(
+                printer = a1Printer(),
+                status = a1Status(VirtualTray(id = 17, label = "External")),
+                assignments = emptyList()
+            ),
+            UnsupportedTopologyReason.UnknownExternalSlotMapping
+        )
+    }
+
+    @Test
+    fun nonDefaultA1VirtualTrayWithAmsAssignmentEvidenceFailsClosed() {
+        assertUnsupported(
+            KnownSlotTopologyResolver().resolve(
+                printer = a1Printer(),
+                status = a1Status(VirtualTray(id = 17, label = "External")),
+                assignments = listOf(assignment(slot = slotKey(amsId = 0, trayId = 0)))
+            ),
+            UnsupportedTopologyReason.UnknownExternalSlotMapping
+        )
+    }
+
+    @Test
+    fun nonDefaultVirtualTrayDoesNotResolveWithoutExactA1Model() {
+        listOf(null, "P1S").forEach { model ->
+            val printer = Printer(id = printerId(), name = "Synthetic", model = model)
+            assertUnsupported(
+                KnownSlotTopologyResolver().resolve(
+                    printer = printer,
+                    status = PrinterStatus(
+                        printer = printer,
+                        connected = true,
+                        virtualTrays = listOf(VirtualTray(id = 17, label = "External")),
+                        amsExists = false
+                    ),
+                    assignments = listOf(assignment(slot = slotKey(amsId = 255, trayId = 0)))
+                ),
+                UnsupportedTopologyReason.UnknownExternalSlotMapping
+            )
+        }
+    }
+
+    @Test
+    fun amsCapabilityFlagDoesNotOverridePhysicalSingleSlotEvidence() {
+        listOf(null, false, true).forEach { amsExists ->
+            val resolution = KnownSlotTopologyResolver().resolve(
+                printer = a1Printer(),
+                status = a1Status(VirtualTray(id = 17, label = "External"), amsExists = amsExists),
+                assignments = listOf(assignment(slot = slotKey(amsId = 255, trayId = 0)))
+            )
+
+            assertIs<SlotTopologyResolution.Supported>(resolution)
+        }
+    }
+
+    @Test
+    fun multipleVirtualTraysNeverUseA1SingleSlotEvidenceRule() {
+        assertUnsupported(
+            KnownSlotTopologyResolver().resolve(
+                printer = a1Printer(),
+                status = a1Status(
+                    VirtualTray(id = 17, label = "External"),
+                    VirtualTray(id = 18, label = "Another")
+                ),
+                assignments = listOf(assignment(slot = slotKey(amsId = 255, trayId = 0)))
+            ),
+            UnsupportedTopologyReason.UnknownExternalSlotMapping
+        )
+    }
+
+    @Test
+    fun duplicateOrContradictoryAssignmentEvidenceNeverResolvesA1CompatibilityRule() {
+        assertUnsupported(
+            KnownSlotTopologyResolver().resolve(
+                printer = a1Printer(),
+                status = a1Status(VirtualTray(id = 17, label = "External")),
+                assignments = listOf(
+                    assignment(spoolId = spoolId(1), slot = slotKey(amsId = 255, trayId = 0)),
+                    assignment(spoolId = spoolId(2), slot = slotKey(amsId = 255, trayId = 0))
+                )
+            ),
+            UnsupportedTopologyReason.UnknownExternalSlotMapping
+        )
+    }
+
+    @Test
     fun confirmedA1ExternalSlotResolvesFromPhysicalVirtualTray() {
         val resolver = KnownSlotTopologyResolver()
         val rule = A1_SLOT_TOPOLOGY_RULE_SET.externalSlots.single()
@@ -208,10 +308,22 @@ class SlotTopologyResolverTest {
 
 private fun printer(): Printer = Printer(id = printerId(), name = "Printer")
 
+private fun a1Printer(): Printer = Printer(id = printerId(), name = "Owner rename is irrelevant", model = "A1")
+
 private fun status(vararg virtualTrays: VirtualTray): PrinterStatus = PrinterStatus(
     printer = printer(),
     connected = true,
     virtualTrays = virtualTrays.toList()
+)
+
+private fun a1Status(
+    vararg virtualTrays: VirtualTray,
+    amsExists: Boolean? = false
+): PrinterStatus = PrinterStatus(
+    printer = a1Printer(),
+    connected = true,
+    virtualTrays = virtualTrays.toList(),
+    amsExists = amsExists
 )
 
 private fun assignment(spoolId: SpoolId = spoolId(1), slot: SlotKey = slotKey(amsId = 255, trayId = 0)): Assignment =
@@ -229,3 +341,11 @@ private fun slotKey(amsId: Int, trayId: Int): SlotKey =
 private fun printerId(): PrinterId = PrinterId.from(1) ?: error("Test printer ID must be valid")
 
 private fun spoolId(value: Long): SpoolId = SpoolId.from(value) ?: error("Test spool ID must be valid")
+
+private fun assertUnsupported(
+    resolution: SlotTopologyResolution,
+    expectedReason: UnsupportedTopologyReason
+) {
+    val unsupported = assertIs<SlotTopologyResolution.Unsupported>(resolution)
+    assertEquals(expectedReason, unsupported.failure.reason)
+}

@@ -17,6 +17,21 @@ import kotlin.test.assertNotNull
 class BambuddyDtoMappingTest {
 
     @Test
+    fun printerModelAndAuthoritativeAmsCapabilityMapAsTopologyEvidence() {
+        val printer = assertSuccess(
+            parsePrintersResponse("""[{"id":1,"name":"Synthetic","model":"A1"}]""")
+        ).single()
+        val status = assertSuccess(
+            parsePrinterStatusResponse(
+                """{"id":1,"name":"Synthetic","connected":true,"ams_exists":false,"vt_tray":[{"id":17}]}"""
+            )
+        )
+
+        assertEquals("A1", printer.model)
+        assertEquals(false, status.amsExists)
+    }
+
+    @Test
     fun assignmentRequestUsesExactLogicalJsonShape() {
         val command = AssignmentCommand.from(
             spoolId = spoolId(3),

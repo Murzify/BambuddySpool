@@ -23,6 +23,7 @@ class KnownSlotTopologyResolver(private val ruleSet: SlotTopologyRuleSet = A1_SL
         status: PrinterStatus,
         assignments: List<Assignment>
     ): SlotTopologyResolution {
+        A1_SINGLE_EXTERNAL_SLOT_EVIDENCE_RULE.resolve(printer, status, assignments)?.let { return it }
         if (status.printer.id != printer.id) {
             return unsupported(UnsupportedTopologyReason.ConflictingCoordinates)
         }
@@ -144,6 +145,68 @@ val A1_SLOT_TOPOLOGY_RULE_SET: SlotTopologyRuleSet = SlotTopologyRuleSet(
         )
     )
 )
+
+/**
+ * A narrowly scoped compatibility rule for the owner-confirmed A1 without AMS.
+ *
+ * Bambuddy's virtual-tray identifier is transport metadata, not the assignment coordinate. This rule therefore
+ * never converts that identifier into a coordinate. It accepts a non-default identifier only when the API model,
+ * physical status, and an existing assignment independently prove the single physical External slot is the
+ * documented `255/0` slot. `ams_exists` is a Bambuddy capability flag rather than attached-AMS evidence and is
+ * deliberately not used for physical topology resolution.
+ */
+private val A1_SINGLE_EXTERNAL_SLOT_EVIDENCE_RULE = A1SingleExternalSlotEvidenceRule(
+    printerModel = "A1",
+    assignmentAmsId = 255,
+    assignmentTrayId = 0,
+    label = "External"
+)
+
+private data class A1SingleExternalSlotEvidenceRule(
+    val printerModel: String,
+    val assignmentAmsId: Int,
+    val assignmentTrayId: Int,
+    val label: String
+) {
+    @Suppress("ReturnCount")
+    fun resolve(
+        printer: Printer,
+        status: PrinterStatus,
+        assignments: List<Assignment>
+    ): SlotTopologyResolution? {
+        if (status.printer.id != printer.id || !isConfirmedA1(printer)) {
+            return null
+        }
+        if (status.virtualTrays.size != 1) {
+            return null
+        }
+
+        val expectedKey = SlotKey.from(printer.id, assignmentAmsId, assignmentTrayId)
+            ?: return unsupported(UnsupportedTopologyReason.ConflictingCoordinates)
+        val relevantAssignments = assignments.filter { it.slot.printerId == printer.id }
+
+        // Exactly one existing assignment at the documented coordinates is the no-AMS evidence.  In particular,
+        // an empty assignment list, an AMS assignment, a duplicate, or another coordinate cannot establish mapping.
+        if (relevantAssignments.size != 1 || relevantAssignments.single().slot != expectedKey) {
+            return null
+        }
+
+        val virtualTray = status.virtualTrays.single()
+        return SlotTopologyResolution.Supported(
+            slots = listOf(
+                PrinterSlot(
+                    key = expectedKey,
+                    kind = SlotKind.External,
+                    label = virtualTray.label ?: label,
+                    assignedSpoolId = relevantAssignments.single().spoolId
+                )
+            )
+        )
+    }
+
+    private fun isConfirmedA1(printer: Printer): Boolean =
+        printer.model?.trim()?.equals(printerModel, ignoreCase = true) == true
+}
 
 private fun unsupported(reason: UnsupportedTopologyReason): SlotTopologyResolution.Unsupported =
     SlotTopologyResolution.Unsupported(UnsupportedTopology(reason))

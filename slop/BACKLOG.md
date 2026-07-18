@@ -318,6 +318,21 @@ produce typed incompatible-response failures. Focused mapping and full-snapshot 
 with zero remaining grams, repository documentation records the correction without private data, and no live
 inventory is committed.
 
+- [x] [MVP]-[006] Resolve Evidence-Bound A1 Single External Slot Compatibility
+Task Context
+Support the owner-confirmed Bambu Lab A1 without AMS only when independent server evidence proves the documented
+assignment coordinates. The compatibility rule must require the exact API `model=A1`, exactly one physical
+`vt_tray`, and exactly one current assignment at `ams_id=255`, `tray_id=0`; it may then map a differing
+virtual-tray identifier to that documented coordinate. Never derive an assignment coordinate from tray order,
+identity alone, an empty assignment list, an AMS assignment, duplicates, or a multi-slot status. Preserve the
+strict unsupported state for every missing or contradictory condition and do not bind mutation or NFC paths.
+Task DOD
+The `255/0` values remain isolated in shared topology rules. Deterministic common tests cover the allowed
+non-default virtual-tray identifier and reject missing assignment evidence, missing/non-A1 model, AMS-coordinate
+evidence, duplicate/contradictory evidence, and multiple slots. `ams_exists` is capability metadata, not
+attached-AMS topology evidence, and cannot negate the independently proven physical single-slot state. No private
+request, mutation, NFC write, or sanitized private data is added.
+
 ## Stage 4. Testing, Reliability, and Acceptance
 
 - [ ] [TEST]-[001] Complete Deterministic Common Business Tests

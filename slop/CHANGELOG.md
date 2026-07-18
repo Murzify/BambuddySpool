@@ -1,5 +1,14 @@
 # Agent Documentation Changelog
 
+## 2026-07-18
+
+- Completed `[MVP]-[006]`: added an evidence-bound compatibility rule for one Bambu Lab A1 without AMS. A differing
+  virtual-tray identifier can resolve only with API `model=A1`, exactly one physical tray, and exactly one existing
+  assignment at the isolated documented `255/0` coordinates. `ams_exists` is capability metadata rather than
+  attached-AMS proof, so it cannot negate that independent physical evidence. Missing, unknown, multi-slot, AMS
+  coordinate, duplicate, or contradictory evidence remains unsupported. The rule never derives coordinates from a
+  display name or tray order, and it does not bind any mutation or NFC path.
+
 ## 2026-07-15
 
 - Completed `[MVP]-[005]`: a finite, nonnegative `weight_used` above `label_weight` now maps to zero remaining

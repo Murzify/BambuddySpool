@@ -21,7 +21,7 @@ data class SlotKey(val printerId: PrinterId, val amsId: Int, val trayId: Int) {
     }
 }
 
-data class Printer(val id: PrinterId, val name: String?)
+data class Printer(val id: PrinterId, val name: String?, val model: String? = null)
 
 data class Spool(
     val id: SpoolId,
